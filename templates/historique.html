@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Historique - ADIL APP{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="header-left">
+        <h2>📜 Historique des Campagnes</h2>
+        <p>Consultez les campagnes qui ont été supprimées.</p>
+    </div>
+</div>
+
+<div class="panel" style="margin-top: 20px;">
+    <div class="panel-header">
+        <h3>Campagnes Supprimées</h3>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Created At</th>
+                <th>Deleted At</th>
+                <th>Status (Lors de la suppression)</th>
+                <th>SMTPs Utilisés</th>
+                <th>Total Recipients</th>
+                <th>Envoyés</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if history %}
+            {% for c in history %}
+            <tr>
+                <td><strong>{{ c.name }}</strong></td>
+                <td>{{ c.created_at[:16] if c.created_at else '--' }}</td>
+                <td>{{ c.deleted_at[:16] if c.deleted_at else '--' }}</td>
+                <td><span class="status-badge status-{{ c.status|lower }}">{{ c.status|capitalize }}</span></td>
+                <td style="font-size: 0.9em; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                    title="{{ c.smtp_names }}">
+                    {{ c.smtp_names or '--' }}
+                </td>
+                <td>{{ c.total_recipients|default(0) }}</td>
+                <td>{{ c.sent_count|default(0) }}</td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; color: #6b7280; padding: 2rem;">
+                    Aucune campagne dans l'historique pour l'instant.
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

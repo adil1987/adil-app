@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>SMTP Servers</h1>
+
+<div class="smtp-layout">
+
+    <!-- ================= LEFT: SMTP FORM ================= -->
+    <div class="panel smtp-form">
+        <h2>Add / Edit SMTP</h2>
+
+        <form method="post">
+            <input type="hidden" name="smtp_id" id="smtp_id" value="">
+
+            <label>Name</label>
+            <input type="text" name="name" id="smtp_name" required placeholder="Ex: SMTP Principal">
+
+            <label>Host</label>
+            <input type="text" name="host" id="smtp_host" required placeholder="smtp.example.com">
+
+            <label>Port</label>
+            <input type="number" name="port" id="smtp_port" value="587">
+
+            <label>Username</label>
+            <input type="text" name="username" id="smtp_username" required placeholder="user@example.com">
+
+            <label>Password</label>
+            <input type="password" name="password" id="smtp_password" required placeholder="••••••••">
+
+            <div class="checkbox-row">
+                <input type="checkbox" name="use_tls" id="smtp_tls" checked>
+                <label for="smtp_tls">Use TLS</label>
+            </div>
+
+            <label>Rate Limit (emails/hour)</label>
+            <input type="number" name="rate_limit" id="smtp_rate" value="100">
+
+            <label>Daily Limit (emails/day)</label>
+            <input type="number" name="daily_limit" id="smtp_daily" value="500">
+
+            <div class="checkbox-row">
+                <input type="checkbox" name="is_active" id="smtp_active" checked>
+                <label for="smtp_active">Active</label>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" name="action" value="save">Save SMTP</button>
+                <button type="button" onclick="resetForm()">Reset</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ================= RIGHT: SMTP LIST ================= -->
+    <div class="panel smtp-list">
+        <h2>Configured Servers ({{ smtp_list|length }})</h2>
+
+        {% if smtp_list %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Host</th>
+                    <th>Rate</th>
+                    <th>Daily</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in smtp_list %}
+                <tr>
+                    <td><strong>{{ s.name }}</strong></td>
+                    <td>{{ s.host }}:{{ s.port }}</td>
+                    <td>{{ s.rate_limit }}/h</td>
+                    <td>{{ s.sent_today }}/{{ s.daily_limit }}</td>
+                    <td>
+                        {% if s.is_active %}
+                        <span class="badge green">Active</span>
+                        {% else %}
+                        <span class="badge red">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <button type="button" class="btn-edit" onclick="editSmtp({{ s|tojson }})">✏️</button>
+                        <form method="post" style="display:inline;" onsubmit="return confirm('Delete this SMTP?');">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="smtp_id" value="{{ s.id }}">
+                            <button type="submit" class="btn-delete">✕</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">No SMTP servers configured yet.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+    function editSmtp(smtp) {
+        document.getElementById('smtp_id').value = smtp.id;
+        document.getElementById('smtp_name').value = smtp.name;
+        document.getElementById('smtp_host').value = smtp.host;
+        document.getElementById('smtp_port').value = smtp.port;
+        document.getElementById('smtp_username').value = smtp.username;
+        document.getElementById('smtp_password').value = smtp.password;
+        document.getElementById('smtp_tls').checked = smtp.use_tls == 1;
+        document.getElementById('smtp_rate').value = smtp.rate_limit;
+        document.getElementById('smtp_daily').value = smtp.daily_limit;
+        document.getElementById('smtp_active').checked = smtp.is_active == 1;
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+        document.getElementById('smtp_id').value = '';
+        document.getElementById('smtp_name').value = '';
+        document.getElementById('smtp_host').value = '';
+        document.getElementById('smtp_port').value = '587';
+        document.getElementById('smtp_username').value = '';
+        document.getElementById('smtp_password').value = '';
+        document.getElementById('smtp_tls').checked = true;
+        document.getElementById('smtp_rate').value = '100';
+        document.getElementById('smtp_daily').value = '500';
+        document.getElementById('smtp_active').checked = true;
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>📋 Contacts</h1>
+
+<!-- ================= STATS BAR ================= -->
+<div class="contacts-stats">
+    <div class="stat-item">
+        <span class="stat-value">{{ counts.total }}</span>
+        <span class="stat-label">Total</span>
+    </div>
+    <div class="stat-item green">
+        <span class="stat-value">{{ counts.active }}</span>
+        <span class="stat-label">Active</span>
+    </div>
+    <div class="stat-item orange">
+        <span class="stat-value">{{ counts.unsubscribed }}</span>
+        <span class="stat-label">Unsubscribed</span>
+    </div>
+    <div class="stat-item red">
+        <span class="stat-value">{{ counts.bounced }}</span>
+        <span class="stat-label">Bounced</span>
+    </div>
+</div>
+
+<div class="contacts-layout">
+
+    <!-- ================= LEFT: IMPORT SECTION ================= -->
+    <div class="panel import-panel">
+        <h2>📥 Import Contacts</h2>
+
+        <form method="post" enctype="multipart/form-data" id="importForm">
+            <div class="import-dropzone" id="dropzone">
+                <input type="file" name="file" id="fileInput" accept=".csv,.xlsx" required>
+                <div class="dropzone-content">
+                    <span class="dropzone-icon">📁</span>
+                    <p>Drag & drop CSV or XLSX file here</p>
+                    <p class="hint">or click to browse</p>
+                </div>
+                <div id="fileSelected" class="file-selected" style="display:none;">
+                    <span class="file-icon">📄</span>
+                    <span id="fileName"></span>
+                </div>
+            </div>
+
+            <!-- Column Mapping -->
+            <div id="columnMapping" class="column-mapping" style="display:none;">
+                <h3>Map Columns</h3>
+                <div class="mapping-row">
+                    <label>Email column:</label>
+                    <select name="col_email" id="colEmail" required>
+                        <option value="">-- Select --</option>
+                    </select>
+                </div>
+                <div class="mapping-row">
+                    <label>Prénom column:</label>
+                    <select name="col_prenom" id="colPrenom">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+                <div class="mapping-row">
+                    <label>Nom column:</label>
+                    <select name="col_nom" id="colNom">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="import-options">
+                <label>
+                    <input type="checkbox" name="skip_duplicates" checked>
+                    Skip duplicate emails
+                </label>
+                <label>
+                    <input type="checkbox" name="skip_header" checked>
+                    First row is header
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" onclick="previewFile()">👁 Preview</button>
+                <button type="submit" name="action" value="import" class="btn-primary">📥 Import</button>
+            </div>
+        </form>
+
+        {% if import_result %}
+        <div class="import-result {{ import_result.status }}">
+            <strong>{{ import_result.title }}</strong><br>
+            {{ import_result.message }}
+        </div>
+        {% endif %}
+
+        <!-- Preview Table -->
+        <div id="previewSection" class="preview-section" style="display:none;">
+            <h3>Preview (first 5 rows)</h3>
+            <div id="previewTable" class="preview-table-container"></div>
+        </div>
+    </div>
+
+    <!-- ================= RIGHT: CONTACTS LIST ================= -->
+    <div class="panel contacts-list-panel">
+
+        <!-- Filter Tabs -->
+        <div class="contacts-tabs">
+            <a href="/contacts?status=active" class="tab {% if current_status == 'active' %}active{% endif %}">
+                Active ({{ counts.active }})
+            </a>
+            <a href="/contacts?status=unsubscribed"
+                class="tab {% if current_status == 'unsubscribed' %}active{% endif %}">
+                Unsub ({{ counts.unsubscribed }})
+            </a>
+            <a href="/contacts?status=bounced" class="tab {% if current_status == 'bounced' %}active{% endif %}">
+                Bounced ({{ counts.bounced }})
+            </a>
+        </div>
+
+        <!-- Search -->
+        <div class="contacts-search">
+            <input type="text" id="searchInput" placeholder="🔍 Search emails..." onkeyup="filterTable()">
+        </div>
+
+        <!-- Contacts Table -->
+        {% if contacts %}
+        <table class="data-table" id="contactsTable">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                    <th>Email</th>
+                    <th>Prénom</th>
+                    <th>Nom</th>
+                    <th>Source</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in contacts %}
+                <tr>
+                    <td><input type="checkbox" class="contact-checkbox" value="{{ c.id }}"></td>
+                    <td>{{ c.email }}</td>
+                    <td>{{ c.prenom or '-' }}</td>
+                    <td>{{ c.nom or '-' }}</td>
+                    <td><span class="badge gray">{{ c.source or 'manual' }}</span></td>
+                    <td class="actions">
+                        <form method="post" style="display:inline;" onsubmit="return confirm('Delete this contact?');">
+                            <input type="hidden" name="action" value="delete_contact">
+                            <input type="hidden" name="contact_id" value="{{ c.id }}">
+                            <button type="submit" class="btn-delete">✕</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Bulk Actions -->
+        <div class="bulk-actions">
+            <span id="selectedCount">0 selected</span>
+            <button type="button" onclick="bulkDelete()" class="btn-danger">🗑 Delete Selected</button>
+            <button type="button" onclick="bulkUnsubscribe()">❌ Mark Unsubscribed</button>
+        </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            {% if page > 1 %}
+            <a href="/contacts?status={{ current_status }}&page={{ page - 1 }}">&laquo; Prev</a>
+            {% endif %}
+
+            <span>Page {{ page }} / {{ total_pages }}</span>
+
+            {% if page < total_pages %} <a href="/contacts?status={{ current_status }}&page={{ page + 1 }}">Next
+                &raquo;</a>
+                {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <span style="font-size:48px;">📭</span>
+            <p>No contacts in this list.</p>
+            <p class="hint">Import a CSV or XLSX file to get started.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- ================= JAVASCRIPT ================= -->
+<script>
+    // Drag & Drop
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+
+    // Fix: Only trigger click if not already clicking on the input
+    dropzone.addEventListener('click', (e) => {
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
+
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelect();
+        }
+    });
+
+    fileInput.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect() {
+        const file = fileInput.files[0];
+        if (file) {
+            document.querySelector('.dropzone-content').style.display = 'none';
+            document.getElementById('fileSelected').style.display = 'flex';
+            document.getElementById('fileName').textContent = file.name;
+
+            // Try to read headers for column mapping
+            readFileHeaders(file);
+        }
+    }
+
+    function readFileHeaders(file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            let headers = [];
+
+            if (file.name.endsWith('.csv')) {
+                const lines = e.target.result.split('\n');
+                if (lines.length > 0) {
+                    headers = lines[0].split(/[,;]/).map(h => h.trim().replace(/"/g, ''));
+                }
+            } else {
+                // For XLSX, we'll let the server handle it
+                headers = ['Column A', 'Column B', 'Column C', 'Column D', 'Column E'];
+            }
+
+            populateColumnSelects(headers);
+            document.getElementById('columnMapping').style.display = 'block';
+        };
+        reader.readAsText(file);
+    }
+
+    function populateColumnSelects(headers) {
+        const selects = ['colEmail', 'colPrenom', 'colNom'];
+        const defaults = {
+            'colEmail': ['email', 'mail', 'e-mail', 'courriel'],
+            'colPrenom': ['prenom', 'prénom', 'firstname', 'first_name', 'first name'],
+            'colNom': ['nom', 'lastname', 'last_name', 'last name', 'name']
+        };
+
+        selects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            select.innerHTML = selectId === 'colEmail' ? '<option value="">-- Select --</option>' : '<option value="">-- None --</option>';
+
+            headers.forEach((header, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = header;
+
+                // Auto-select based on common names
+                const headerLower = header.toLowerCase();
+                if (defaults[selectId].some(d => headerLower.includes(d))) {
+                    option.selected = true;
+                }
+
+                select.appendChild(option);
+            });
+        });
+    }
+
+    function previewFile() {
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Please select a file first');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            let rows = [];
+
+            if (file.name.endsWith('.csv')) {
+                const lines = e.target.result.split('\n').slice(0, 6);
+                rows = lines.map(line => line.split(/[,;]/).map(cell => cell.trim().replace(/"/g, '')));
+            }
+
+            if (rows.length > 0) {
+                let html = '<table class="data-table"><thead><tr>';
+                rows[0].forEach(h => html += `<th>${h}</th>`);
+                html += '</tr></thead><tbody>';
+
+                rows.slice(1, 6).forEach(row => {
+                    html += '<tr>';
+                    row.forEach(cell => html += `<td>${cell}</td>`);
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                document.getElementById('previewTable').innerHTML = html;
+                document.getElementById('previewSection').style.display = 'block';
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // Search
+    function filterTable() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('#contactsTable tbody tr');
+
+        rows.forEach(row => {
+            const email = row.cells[1].textContent.toLowerCase();
+            row.style.display = email.includes(query) ? '' : 'none';
+        });
+    }
+
+    // Select All
+    function toggleSelectAll() {
+        const checked = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.contact-checkbox').forEach(cb => cb.checked = checked);
+        updateSelectedCount();
+    }
+
+    document.querySelectorAll('.contact-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const count = document.querySelectorAll('.contact-checkbox:checked').length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+    }
+
+    function getSelectedIds() {
+        return Array.from(document.querySelectorAll('.contact-checkbox:checked')).map(cb => cb.value);
+    }
+
+    function bulkDelete() {
+        const ids = getSelectedIds();
+        if (ids.length === 0) {
+            alert('Select at least one contact');
+            return;
+        }
+        if (confirm(`Delete ${ids.length} contacts?`)) {
+            // Submit via form
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.innerHTML = `<input name="action" value="bulk_delete"><input name="ids" value="${ids.join(',')}">`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    function bulkUnsubscribe() {
+        const ids = getSelectedIds();
+        if (ids.length === 0) {
+            alert('Select at least one contact');
+            return;
+        }
+        if (confirm(`Mark ${ids.length} contacts as unsubscribed?`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.innerHTML = `<input name="action" value="bulk_unsubscribe"><input name="ids" value="${ids.join(',')}">`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+</script>
+
+{% endblock %}

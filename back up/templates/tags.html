@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>🏷️ Tags</h1>
+
+<div class="tags-layout">
+
+    <!-- ================= LEFT: ADD/EDIT TAG ================= -->
+    <div class="panel tag-form">
+        <h2>{{ 'Edit Tag' if edit_tag else 'Add Tag' }}</h2>
+
+        <form method="post">
+            <input type="hidden" name="tag_id" value="{{ edit_tag.id if edit_tag else '' }}">
+
+            <label>Tag name</label>
+            <input type="text" name="name" required value="{{ edit_tag.name if edit_tag else '' }}"
+                placeholder="Ex: Newsletter, VIP, Promo2024">
+
+            <div class="form-actions">
+                <button type="submit" name="action" value="save">
+                    {{ '💾 Update' if edit_tag else '➕ Add Tag' }}
+                </button>
+                {% if edit_tag %}
+                <a href="/tags" class="btn-cancel">Cancel</a>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- Quick add multiple tags -->
+        <div class="quick-add" style="margin-top:20px; padding-top:15px; border-top:1px solid #e5e7eb;">
+            <h3>Quick Add</h3>
+            <form method="post">
+                <textarea name="tags_bulk" rows="4"
+                    placeholder="One tag per line:&#10;Newsletter&#10;VIP&#10;Promo2024"></textarea>
+                <button type="submit" name="action" value="add_bulk">➕ Add All</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= RIGHT: TAGS LIST ================= -->
+    <div class="panel tags-list">
+        <h2>All Tags ({{ tags|length }})</h2>
+
+        {% if tags %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Tag Name</th>
+                    <th>Contacts</th>
+                    <th>📤 Emails Sent</th>
+                    <th>👀 Opened</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tag in tags %}
+                <tr>
+                    <td>
+                        <span class="tag-badge">{{ tag.name }}</span>
+                    </td>
+                    <td>{{ tag.contact_count }}</td>
+                    <td>{{ tag.emails_sent or 0 }}</td>
+                    <td>
+                        {% if tag.emails_sent and tag.emails_sent > 0 %}
+                        {{ tag.emails_opened or 0 }} ({{ ((tag.emails_opened or 0) * 100 / tag.emails_sent)|round(1)
+                        }}%)
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <a href="/tags?edit={{ tag.id }}" class="btn-edit">✏️</a>
+                        <form method="post" style="display:inline;" onsubmit="return confirm('Delete this tag?');">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="tag_id" value="{{ tag.id }}">
+                            <button type="submit" class="btn-delete">✕</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <span style="font-size:48px;">🏷️</span>
+            <p>No tags created yet.</p>
+            <p class="hint">Create tags to organize your contacts.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}

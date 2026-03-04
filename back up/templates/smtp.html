@@ -1,0 +1,674 @@
+{% extends "base.html" %}
+
+{% block title %}SMTP Servers{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📧 SMTP Servers</h1>
+    <p class="page-description">Manage your SMTP servers for email sending</p>
+</div>
+
+<div class="controls-bar">
+    <div class="search-section">
+        <input type="text" id="smtpSearch" placeholder="🔍 Search by name, host, domain..." oninput="filterSmtpList()">
+    </div>
+</div>
+
+{% if smtp_servers %}
+<div class="smtp-list">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>DNS</th>
+                <th>Name</th>
+                <th>Host</th>
+                <th>Domain</th>
+                <th>Priority</th>
+                <th>Rate/Daily</th>
+                <th>Sent Today</th>
+                <th>Total Sent</th>
+                <th>Metrics</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="smtpTableBody">
+            {% for smtp in smtp_servers %}
+            <tr
+                data-search="{{ smtp.name|lower }} {{ smtp.host|lower }} {{ smtp.domain|lower if smtp.domain else '' }}">
+                <td>
+                    {% if smtp.pause_reason %}
+                    <span class="badge red" title="{{ smtp.pause_reason }}">⚠️ Paused</span>
+                    {% elif smtp.is_active %}
+                    <span class="badge green">Active</span>
+                    {% else %}
+                    <span class="badge gray">Paused</span>
+                    {% endif %}
+                    {% if smtp.warmup_enabled and smtp.warmup_level and smtp.warmup_level < 10 %} <span
+                        class="badge blue" title="Warmup day {{ smtp.warmup_level }}">🔥 {{ smtp.warmup_level }}</span>
+                        {% endif %}
+                </td>
+                <td>
+                    <div class="dns-status-cell">
+                        {% set dns = smtp.dns_status|default('') %}
+                        {% if dns %}
+                        {% if 'spf_ok' in dns %}<span class="dns-badge ok">SPF ✅</span>{% else %}<span
+                            class="dns-badge warn">SPF ❌</span>{% endif %}
+                        {% if 'dkim_ok' in dns %}<span class="dns-badge ok">DKIM ✅</span>{% else %}<span
+                            class="dns-badge warn">DKIM ❌</span>{% endif %}
+                        {% if 'dmarc_ok' in dns %}<span class="dns-badge ok">DMARC ✅</span>{% elif 'dmarc_none' in dns
+                        %}<span class="dns-badge partial">DMARC ⚠️</span>{% else %}<span class="dns-badge warn">DMARC
+                            ❌</span>{% endif %}
+                        {% else %}
+                        <span class="dns-badge pending">📋 Check</span>
+                        {% endif %}
+                    </div>
+                </td>
+                <td class="smtp-name">{{ smtp.name }}</td>
+                <td class="smtp-host">{{ smtp.host }}</td>
+                <td>{{ smtp.sending_domain or smtp.domain or '-' }}</td>
+                <td>{{ smtp.priority or 1 }}</td>
+                <td>
+                    {{ smtp.rate_limit }}/h · {{ smtp.daily_limit }}/d
+                    <br><small style="color:#6b7280;">🧵 {{ smtp.max_connections or 1 }} thread(s)</small>
+                </td>
+                <td>
+                    <span class="sent-counter {% if smtp.sent_today >= smtp.daily_limit %}limit-reached{% endif %}">
+                        {{ smtp.sent_today or 0 }} / {{ smtp.daily_limit }}
+                    </span>
+                </td>
+                <td style="text-align: center; font-weight: 500;">
+                    {{ smtp.total_sent or 0 }}
+                </td>
+                <td>
+                    <div class="metrics-wrapper" style="display: flex; gap: 8px; align-items: center;">
+                        {% set bounce_rate = ((smtp.total_bounced or 0) / (smtp.total_sent or 1) * 100)|round(1) %}
+                        <span
+                            class="reputation-score {% if smtp.reputation_score < 50 %}low{% elif smtp.reputation_score < 80 %}medium{% else %}high{% endif %}"
+                            title="Reputation">
+                            {{ smtp.reputation_score|default(100)|round(0)|int }}%
+                        </span>
+                        {% if bounce_rate > 0 %}
+                        <span class="bounce-rate {% if bounce_rate > (smtp.max_bounce_rate or 5) %}danger{% endif %}"
+                            title="Bounce rate">
+                            ↩️{{ bounce_rate }}%
+                        </span>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    <div class="actions-wrapper" style="display: flex; gap: 5px; white-space: nowrap;">
+                        <button class="btn-small btn-test" onclick="checkDns({{ smtp.id }})"
+                            title="Check DNS">📋</button>
+                        <button class="btn-small btn-test" onclick="testConnection({{ smtp.id }})"
+                            title="Test Connection">🔌</button>
+                        <button class="btn-small btn-edit" onclick='editSmtp({{ smtp|tojson|safe }})'
+                            title="Edit">✏️</button>
+                        <button class="btn-small btn-toggle" onclick="toggleStatus({{ smtp.id }}, {{ smtp.is_active }})"
+                            title="{% if smtp.is_active %}Pause{% else %}Activate{% endif %}">
+                            {% if smtp.is_active %}⏸️{% else %}▶️{% endif %}
+                        </button>
+                        <button class="btn-small btn-delete" onclick="confirmDelete({{ smtp.id }}, '{{ smtp.name }}')"
+                            title="Delete">🗑️</button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <h2>No SMTP servers configured</h2>
+    <p>Add your first SMTP server to start sending emails.</p>
+</div>
+{% endif %}
+
+<!-- Add Button & Inline Form -->
+<div class="smtp-add-section">
+    <button id="addSmtpBtn" class="btn-primary" onclick="toggleAddForm()">➕ Add SMTP Server</button>
+
+    <div id="smtpAddForm" class="smtp-inline-form" style="display: none;">
+        <form method="POST">
+            <input type="hidden" name="action" value="add">
+
+            <div class="form-grid">
+                <!-- Left Column: Connection -->
+                <div class="form-column">
+                    <h3>🔌 Connection</h3>
+
+                    <div class="form-group">
+                        <label for="smtpName">Server Name *</label>
+                        <input type="text" id="smtpName" name="name" required placeholder="My SMTP Server">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="smtpHost">Host *</label>
+                            <input type="text" id="smtpHost" name="host" required placeholder="smtp.example.com">
+                        </div>
+                        <div class="form-group" style="max-width: 100px;">
+                            <label for="smtpPort">Port</label>
+                            <input type="number" id="smtpPort" name="port" value="587">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="smtpTls" name="use_tls" checked>
+                            Use TLS/STARTTLS
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="smtpUsername">Username *</label>
+                        <input type="text" id="smtpUsername" name="username" required placeholder="user@example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="smtpPassword">Password *</label>
+                        <input type="password" id="smtpPassword" name="password" required placeholder="••••••••">
+                    </div>
+                </div>
+
+                <!-- Right Column: Settings & Safeguards -->
+                <div class="form-column">
+                    <h3>📧 Sending Configuration</h3>
+
+                    <div class="form-group">
+                        <label for="smtpFromEmail">From Email *</label>
+                        <input type="email" id="smtpFromEmail" name="from_email" required
+                            placeholder="contact@yourdomain.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="smtpSendingDomain">Sending Domain</label>
+                        <input type="text" id="smtpSendingDomain" name="sending_domain"
+                            placeholder="mail.yourdomain.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="smtpDkimSelector">DKIM Selector</label>
+                        <input type="text" id="smtpDkimSelector" name="dkim_selector"
+                            placeholder="mail, default, s1...">
+                    </div>
+
+                    <h3>📬 Bounce Mailbox</h3>
+                    <div class="form-group">
+                        <label for="smtpBounceEmail">Bounce Email</label>
+                        <input type="email" id="smtpBounceEmail" name="bounce_email"
+                            placeholder="bounce@yourdomain.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="smtpBouncePassword">Bounce Password</label>
+                        <input type="password" id="smtpBouncePassword" name="bounce_password" placeholder="••••••••">
+                    </div>
+                    <small style="color:#6b7280; font-size:12px;">IMAP will use the same host as SMTP (port 993)</small>
+
+                    <h3>⚙️ Rate Limits</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="smtpRateLimit">Per hour</label>
+                            <input type="number" id="smtpRateLimit" name="rate_limit" value="100" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="smtpDailyLimit">Per day</label>
+                            <input type="number" id="smtpDailyLimit" name="daily_limit" value="500" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="smtpPriority">Priority</label>
+                            <input type="number" id="smtpPriority" name="priority" value="1" min="1" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="smtpMaxConnections" title="Concurrent connections to this SMTP">Threads</label>
+                            <input type="number" id="smtpMaxConnections" name="max_connections" value="1" min="1"
+                                max="50">
+                        </div>
+                    </div>
+
+                    <h3>🛡️ Safeguards</h3>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="smtpAutoPause" name="auto_pause_on_error" checked>
+                            Auto-pause on errors (421/451)
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="smtpMaxBounce">Max bounce rate (%)</label>
+                            <input type="number" id="smtpMaxBounce" name="max_bounce_rate" value="5" min="0.1" max="100"
+                                step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="smtpMaxSpam">Max spam rate (%)</label>
+                            <input type="number" id="smtpMaxSpam" name="max_spam_rate" value="0.1" min="0.01" max="10"
+                                step="0.01">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="smtpWarmup" name="warmup_enabled" checked>
+                            Progressive warmup enabled
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="testConnectionForm()">🔌 Test Connection</button>
+                <button type="button" class="btn-secondary" onclick="toggleAddForm()">Cancel</button>
+                <button type="submit" class="btn-primary">💾 Save Server</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal (kept for editing existing servers) -->
+<div id="smtpModal" class="modal" style="display: none;">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2 id="modalTitle">Edit SMTP Server</h2>
+        </div>
+        <form id="smtpForm" method="POST">
+            <input type="hidden" name="action" id="formAction" value="edit">
+            <input type="hidden" name="smtp_id" id="smtpId" value="">
+
+            <div class="form-grid">
+                <!-- Left Column: Connection -->
+                <div class="form-column">
+                    <h3>🔌 Connection</h3>
+
+                    <div class="form-group">
+                        <label for="editSmtpName">Server Name *</label>
+                        <input type="text" id="editSmtpName" name="name" required placeholder="My SMTP Server">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editSmtpHost">Host *</label>
+                            <input type="text" id="editSmtpHost" name="host" required placeholder="smtp.example.com">
+                        </div>
+                        <div class="form-group" style="max-width: 100px;">
+                            <label for="editSmtpPort">Port</label>
+                            <input type="number" id="editSmtpPort" name="port" value="587">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="editSmtpTls" name="use_tls" checked>
+                            Use TLS/STARTTLS
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editSmtpUsername">Username *</label>
+                        <input type="text" id="editSmtpUsername" name="username" required
+                            placeholder="user@example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editSmtpPassword">Password *</label>
+                        <input type="password" id="editSmtpPassword" name="password" required placeholder="••••••••">
+                    </div>
+                </div>
+
+                <!-- Right Column: Settings & Safeguards -->
+                <div class="form-column">
+                    <h3>📧 Sending Configuration</h3>
+
+                    <div class="form-group">
+                        <label for="editSmtpFromEmail">From Email *</label>
+                        <input type="email" id="editSmtpFromEmail" name="from_email" required
+                            placeholder="contact@yourdomain.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="editSmtpSendingDomain">Sending Domain</label>
+                        <input type="text" id="editSmtpSendingDomain" name="sending_domain"
+                            placeholder="mail.yourdomain.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editSmtpDkimSelector">DKIM Selector</label>
+                        <input type="text" id="editSmtpDkimSelector" name="dkim_selector"
+                            placeholder="mail, default, s1...">
+                    </div>
+
+                    <h3>📬 Bounce Mailbox</h3>
+                    <div class="form-group">
+                        <label for="editSmtpBounceEmail">Bounce Email</label>
+                        <input type="email" id="editSmtpBounceEmail" name="bounce_email"
+                            placeholder="bounce@yourdomain.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="editSmtpBouncePassword">Bounce Password</label>
+                        <input type="password" id="editSmtpBouncePassword" name="bounce_password"
+                            placeholder="••••••••">
+                    </div>
+                    <small style="color:#6b7280; font-size:12px;">IMAP will use the same host as SMTP (port 993)</small>
+
+                    <h3>⚙️ Rate Limits</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editSmtpRateLimit">Per hour</label>
+                            <input type="number" id="editSmtpRateLimit" name="rate_limit" value="100" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="editSmtpDailyLimit">Per day</label>
+                            <input type="number" id="editSmtpDailyLimit" name="daily_limit" value="500" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="editSmtpPriority">Priority</label>
+                            <input type="number" id="editSmtpPriority" name="priority" value="1" min="1" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="editSmtpMaxConnections"
+                                title="Concurrent connections to this SMTP">Threads</label>
+                            <input type="number" id="editSmtpMaxConnections" name="max_connections" value="1" min="1"
+                                max="50">
+                        </div>
+                    </div>
+
+                    <h3>🛡️ Safeguards</h3>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="editSmtpAutoPause" name="auto_pause_on_error" checked>
+                            Auto-pause on errors (421/451)
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editSmtpMaxBounce">Max bounce rate (%)</label>
+                            <input type="number" id="editSmtpMaxBounce" name="max_bounce_rate" value="5" min="0.1"
+                                max="100" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="editSmtpMaxSpam">Max spam rate (%)</label>
+                            <input type="number" id="editSmtpMaxSpam" name="max_spam_rate" value="0.1" min="0.01"
+                                max="10" step="0.01">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="editSmtpWarmup" name="warmup_enabled" checked>
+                            Progressive warmup enabled
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="editSmtpActive" name="is_active" checked>
+                            Server is active
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="testConnectionModal()">🔌 Test</button>
+                <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn-primary">💾 Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h2>Delete SMTP Server</h2>
+            <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+        </div>
+        <p>Are you sure you want to delete <strong id="deleteSmtpName"></strong>?</p>
+        <form method="POST">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="smtp_id" id="deleteSmtpId">
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button type="submit" class="btn-danger">🗑️ Delete</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Test Connection / DNS Modal -->
+<div id="testModal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h2>Connection Test</h2>
+        </div>
+        <div id="testResult">
+            <div class="loading-spinner"></div>
+            <p class="test-status">Testing connection...</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-secondary" onclick="closeTestModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function filterSmtpList() {
+        const query = document.getElementById('smtpSearch').value.toLowerCase();
+        const rows = document.querySelectorAll('#smtpTableBody tr');
+        rows.forEach(row => {
+            const searchData = row.getAttribute('data-search') || '';
+            row.style.display = searchData.includes(query) ? '' : 'none';
+        });
+    }
+
+    function toggleAddForm() {
+        const form = document.getElementById('smtpAddForm');
+        const btn = document.getElementById('addSmtpBtn');
+        if (form.style.display === 'none') {
+            form.style.display = 'block';
+            btn.style.display = 'none';
+            form.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            form.style.display = 'none';
+            btn.style.display = 'inline-block';
+        }
+    }
+
+    function editSmtp(smtp) {
+        document.getElementById('modalTitle').textContent = 'Edit SMTP Server';
+        document.getElementById('formAction').value = 'edit';
+        document.getElementById('smtpId').value = smtp.id;
+        document.getElementById('editSmtpName').value = smtp.name;
+        document.getElementById('editSmtpHost').value = smtp.host;
+        document.getElementById('editSmtpPort').value = smtp.port;
+        document.getElementById('editSmtpUsername').value = smtp.username;
+        document.getElementById('editSmtpPassword').value = smtp.password;
+        document.getElementById('editSmtpTls').checked = smtp.use_tls == 1;
+        document.getElementById('editSmtpFromEmail').value = smtp.from_email || '';
+        document.getElementById('editSmtpSendingDomain').value = smtp.sending_domain || '';
+        document.getElementById('editSmtpDkimSelector').value = smtp.dkim_selector || '';
+        document.getElementById('editSmtpBounceEmail').value = smtp.bounce_email || '';
+        document.getElementById('editSmtpBouncePassword').value = smtp.bounce_password || '';
+        document.getElementById('editSmtpRateLimit').value = smtp.rate_limit;
+        document.getElementById('editSmtpDailyLimit').value = smtp.daily_limit;
+        document.getElementById('editSmtpPriority').value = smtp.priority || 1;
+        document.getElementById('editSmtpMaxConnections').value = smtp.max_connections || 1;
+        document.getElementById('editSmtpAutoPause').checked = smtp.auto_pause_on_error == 1;
+        document.getElementById('editSmtpMaxBounce').value = smtp.max_bounce_rate || 5;
+        document.getElementById('editSmtpMaxSpam').value = smtp.max_spam_rate || 0.1;
+        document.getElementById('editSmtpWarmup').checked = smtp.warmup_enabled == 1;
+        document.getElementById('editSmtpActive').checked = smtp.is_active == 1;
+        document.getElementById('smtpModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('smtpModal').style.display = 'none';
+    }
+
+    function confirmDelete(id, name) {
+        document.getElementById('deleteSmtpId').value = id;
+        document.getElementById('deleteSmtpName').textContent = name;
+        document.getElementById('deleteModal').style.display = 'flex';
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').style.display = 'none';
+    }
+
+    function toggleStatus(id, currentStatus) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
+            <input type="hidden" name="action" value="toggle">
+            <input type="hidden" name="smtp_id" value="${id}">
+            <input type="hidden" name="new_status" value="${currentStatus ? 0 : 1}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function testConnection(smtpId) {
+        document.getElementById('testResult').innerHTML = `
+            <div class="loading-spinner"></div>
+            <p class="test-status">Testing connection...</p>
+        `;
+        document.getElementById('testModal').style.display = 'flex';
+
+        fetch(`/api/smtp/${smtpId}/test`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('testResult').innerHTML = `
+                        <p class="success-text">✅ ${data.message}</p>
+                    `;
+                } else {
+                    document.getElementById('testResult').innerHTML = `
+                        <p class="error-text">❌ ${data.error}</p>
+                    `;
+                }
+            })
+            .catch(err => {
+                document.getElementById('testResult').innerHTML = `
+                    <p class="error-text">❌ Network error: ${err.message}</p>
+                `;
+            });
+    }
+
+    function testConnectionForm() {
+        const data = {
+            host: document.getElementById('smtpHost').value,
+            port: document.getElementById('smtpPort').value,
+            username: document.getElementById('smtpUsername').value,
+            password: document.getElementById('smtpPassword').value,
+            use_tls: document.getElementById('smtpTls').checked
+        };
+
+        document.getElementById('testResult').innerHTML = `
+            <div class="loading-spinner"></div>
+            <p class="test-status">Testing connection...</p>
+        `;
+        document.getElementById('testModal').style.display = 'flex';
+
+        fetch('/api/smtp/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('testResult').innerHTML = `
+                        <p class="success-text">✅ ${data.message}</p>
+                    `;
+                } else {
+                    document.getElementById('testResult').innerHTML = `
+                        <p class="error-text">❌ ${data.error}</p>
+                    `;
+                }
+            })
+            .catch(err => {
+                document.getElementById('testResult').innerHTML = `
+                    <p class="error-text">❌ Network error: ${err.message}</p>
+                `;
+            });
+    }
+
+    function testConnectionModal() {
+        const data = {
+            host: document.getElementById('editSmtpHost').value,
+            port: document.getElementById('editSmtpPort').value,
+            username: document.getElementById('editSmtpUsername').value,
+            password: document.getElementById('editSmtpPassword').value,
+            use_tls: document.getElementById('editSmtpTls').checked
+        };
+
+        document.getElementById('testResult').innerHTML = `
+            <div class="loading-spinner"></div>
+            <p class="test-status">Testing connection...</p>
+        `;
+        document.getElementById('testModal').style.display = 'flex';
+
+        fetch('/api/smtp/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('testResult').innerHTML = `
+                        <p class="success-text">✅ ${data.message}</p>
+                    `;
+                } else {
+                    document.getElementById('testResult').innerHTML = `
+                        <p class="error-text">❌ ${data.error}</p>
+                    `;
+                }
+            })
+            .catch(err => {
+                document.getElementById('testResult').innerHTML = `
+                    <p class="error-text">❌ Network error: ${err.message}</p>
+                `;
+            });
+    }
+
+    function closeTestModal() {
+        document.getElementById('testModal').style.display = 'none';
+    }
+
+    function checkDns(smtpId) {
+        document.getElementById('testResult').innerHTML = `
+            <div class="loading-spinner"></div>
+            <p class="test-status">Checking DNS records...</p>
+        `;
+        document.getElementById('testModal').style.display = 'flex';
+
+        fetch(`/api/smtp/${smtpId}/check-dns`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    let html = '<div class="dns-results">';
+                    html += `<p>SPF: ${data.spf ? '✅ OK' : '❌ Missing'}</p>`;
+                    html += `<p>DKIM: ${data.dkim ? '✅ OK (' + (data.dkim_selector || '') + ')' : '❌ Missing'}</p>`;
+                    html += `<p>DMARC: ${data.dmarc || '❌ Missing'}</p>`;
+                    html += '</div>';
+                    document.getElementById('testResult').innerHTML = html;
+                } else {
+                    document.getElementById('testResult').innerHTML = `
+                        <p class="error-text">❌ ${data.error}</p>
+                    `;
+                }
+            })
+            .catch(err => {
+                document.getElementById('testResult').innerHTML = `
+                    <p class="error-text">❌ Network error: ${err.message}</p>
+                `;
+            });
+    }
+
+    // Close modals when clicking outside (except edit modal)
+    window.onclick = function (event) {
+        if (event.target.classList.contains('modal') && event.target.id !== 'smtpModal') {
+            event.target.style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}

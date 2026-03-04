@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="emails-container">
+
+    <!-- ================= LEFT : EMAIL EDITOR ================= -->
+    <div class="panel email-form">
+        <div class="editor-header">
+            <h2>Email Editor</h2>
+            <div class="editor-controls">
+                <button type="button" class="btn-dark-mode" onclick="toggleDarkMode()" title="Dark Mode">🌙</button>
+                <span id="autoSaveStatus" class="auto-save-status">Auto-saved</span>
+            </div>
+        </div>
+
+        <form method="post" id="emailForm">
+            <input type="hidden" name="email_id" value="{{ form_data.id or '' }}">
+
+            <!-- INTERNAL NAME -->
+            <label>Email name</label>
+            <input type="text" name="name" id="emailName" required value="{{ form_data.name }}"
+                placeholder="Ex: Promo Février">
+
+            <!-- SUBJECT with character counter -->
+            <label>
+                Subject
+                <span id="subjectCounter" class="char-counter">0/60</span>
+            </label>
+            <input type="text" name="subject" id="subjectInput" required value="{{ form_data.subject }}"
+                placeholder="Ex: Free AI PDF Guides" oninput="updateSubjectCounter()">
+
+            <!-- ADVANCED HEADERS -->
+            <details>
+                <summary>Advanced headers (optional)</summary>
+                <label>From name</label>
+                <input type="text" name="from_name" value="{{ form_data.from_name }}"
+                    placeholder="Ex: Adil from PubPro">
+                <label>Reply-To</label>
+                <input type="email" name="reply_to" value="{{ form_data.reply_to }}" placeholder="contact@domain.com">
+            </details>
+
+            <!-- MODE TABS -->
+            <div class="editor-tabs">
+                <button type="button"
+                    class="tab-btn {% if form_data.mode == 'text' or not form_data.mode %}active{% endif %}"
+                    data-mode="text">Text</button>
+                <button type="button" class="tab-btn {% if form_data.mode == 'html' %}active{% endif %}"
+                    data-mode="html">HTML</button>
+            </div>
+
+            <input type="hidden" name="mode" id="editor_mode" value="{{ form_data.mode or 'text' }}">
+
+            <!-- TOOLBAR -->
+            <div class="editor-toolbar">
+                <!-- Variables -->
+                <div class="toolbar-group">
+                    <span class="toolbar-label">Variables:</span>
+                    <button type="button" class="var-btn" onclick="insertVar('{% raw %}{{prenom}}{% endraw %}')">{% raw
+                        %}{{prenom}}{% endraw %}</button>
+                    <button type="button" class="var-btn" onclick="insertVar('{% raw %}{{nom}}{% endraw %}')">{% raw
+                        %}{{nom}}{% endraw %}</button>
+                    <button type="button" class="var-btn" onclick="insertVar('{% raw %}{{email}}{% endraw %}')">{% raw
+                        %}{{email}}{% endraw %}</button>
+                </div>
+
+                <!-- Emojis -->
+                <div class="toolbar-group">
+                    <span class="toolbar-label">Emoji:</span>
+                    <button type="button" class="emoji-btn" onclick="insertEmoji('😊')">😊</button>
+                    <button type="button" class="emoji-btn" onclick="insertEmoji('🎉')">🎉</button>
+                    <button type="button" class="emoji-btn" onclick="insertEmoji('🔥')">🔥</button>
+                    <button type="button" class="emoji-btn" onclick="insertEmoji('💡')">💡</button>
+                    <button type="button" class="emoji-btn" onclick="insertEmoji('⭐')">⭐</button>
+                    <button type="button" class="emoji-btn" onclick="insertEmoji('✅')">✅</button>
+                    <button type="button" class="emoji-btn" onclick="insertEmoji('❤️')">❤️</button>
+                    <button type="button" class="emoji-btn" onclick="insertEmoji('👉')">👉</button>
+                </div>
+
+                <!-- Spintax -->
+                <div class="toolbar-group">
+                    <span class="toolbar-label">Spintax:</span>
+                    <button type="button" class="tool-btn" onclick="insertSpintax()" title="Insert spintax variation">{
+                        A | B }</button>
+                </div>
+
+                <!-- Templates -->
+                <div class="toolbar-group">
+                    <span class="toolbar-label">Templates:</span>
+                    <select id="templateSelect" onchange="insertTemplate()">
+                        <option value="">-- Choisir --</option>
+                        <option value="button">Bouton CTA</option>
+                        <option value="header">Header + Logo</option>
+                        <option value="footer">Footer signature</option>
+                        <option value="promo">Promo complète</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- BODY with word counter -->
+            <div class="body-header">
+                <label>Email body</label>
+                <span id="wordCounter" class="word-counter">0 mots</span>
+            </div>
+            <textarea id="email_editor" name="body" rows="14" class="code-editor"
+                placeholder="Hello {% raw %}{{prenom}}{% endraw %},&#10;&#10;Your message here..."
+                oninput="updateWordCounter(); triggerAutoSave(); updateLivePreview();">{{ form_data.body }}</textarea>
+
+            <!-- HTML VALIDATION -->
+            <div id="htmlValidation" class="validation-box" style="display:none;"></div>
+
+            <label>Text fallback (plain text)</label>
+            <textarea name="text_fallback" rows="4"
+                placeholder="Plain text version (recommended)">{{ form_data.text_fallback }}</textarea>
+
+            <!-- ACTIONS -->
+            <div class="form-actions">
+                <button type="button" onclick="openPasteHtml()">📋 Paste HTML</button>
+                <button type="button" onclick="validateHtml()">✓ Validate HTML</button>
+                <button type="submit" name="action" value="save">💾 Save</button>
+                <button type="submit" name="action" value="save_and_test" class="btn-primary">
+                    📧 Save & Send Test
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- ================= CENTER : LIVE PREVIEW ================= -->
+    <div class="panel preview-panel">
+        <h3>📱 Live Preview</h3>
+        <div id="livePreviewFrame" class="live-preview-frame">
+            <p class="preview-placeholder">Start typing to see preview...</p>
+        </div>
+    </div>
+
+    <!-- ================= RIGHT : EMAIL LIST ================= -->
+    <div class="panel email-list">
+        <h3>📬 Saved Emails ({{ emails|length }})</h3>
+
+        <ul>
+            {% for e in emails %}
+            <li class="email-item">
+                <div class="email-info">
+                    <a href="/emails?load={{ e.id }}">
+                        <strong>{{ e.name }}</strong><br>
+                        <small>{{ e.subject }}</small>
+                    </a>
+                </div>
+                <div class="email-actions">
+                    <button type="button" class="btn-preview"
+                        onclick="openEmailPreview(`{{ e.body | e }}`, '{{ e.mode }}')">👁</button>
+                    <form method="post" style="display:inline;">
+                        <input type="hidden" name="action" value="duplicate">
+                        <input type="hidden" name="email_id" value="{{ e.id }}">
+                        <button type="submit" class="btn-edit" title="Duplicate">📋</button>
+                    </form>
+                    <form method="post" onsubmit="return confirm('Delete this email?');">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="email_id" value="{{ e.id }}">
+                        <button type="submit" class="btn-delete">✕</button>
+                    </form>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        {% if not emails %}
+        <p class="empty-state">No emails saved yet.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- ================= PREVIEW MODAL ================= -->
+<div id="emailPreviewModal" class="modal">
+    <div class="modal-content modal-large">
+        <h3>Email Preview</h3>
+        <div id="emailPreviewContent" class="modal-preview-content"></div>
+        <div class="modal-actions">
+            <button type="button" onclick="closeEmailPreview()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= PASTE HTML MODAL ================= -->
+<div id="pasteHtmlModal" class="modal">
+    <div class="modal-content">
+        <h3>Paste HTML</h3>
+        <textarea id="pasteHtmlTextarea" rows="12" placeholder="Paste your HTML body here"></textarea>
+        <div class="modal-actions">
+            <button type="button" onclick="applyPasteHtml()">Apply</button>
+            <button type="button" onclick="closePasteHtml()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= JAVASCRIPT ================= -->
+<script>
+    // ===== AUTO-SAVE =====
+    let autoSaveTimer = null;
+    let lastSavedContent = '';
+
+    function triggerAutoSave() {
+        clearTimeout(autoSaveTimer);
+        document.getElementById('autoSaveStatus').textContent = 'Unsaved...';
+        document.getElementById('autoSaveStatus').classList.add('unsaved');
+
+        autoSaveTimer = setTimeout(() => {
+            const content = document.getElementById('email_editor').value;
+            if (content !== lastSavedContent) {
+                localStorage.setItem('emailDraft', JSON.stringify({
+                    name: document.getElementById('emailName').value,
+                    subject: document.getElementById('subjectInput').value,
+                    body: content,
+                    mode: document.getElementById('editor_mode').value,
+                    timestamp: new Date().toISOString()
+                }));
+                lastSavedContent = content;
+                document.getElementById('autoSaveStatus').textContent = 'Auto-saved ✓';
+                document.getElementById('autoSaveStatus').classList.remove('unsaved');
+            }
+        }, 2000);
+    }
+
+    // ===== COUNTERS =====
+    function updateSubjectCounter() {
+        const input = document.getElementById('subjectInput');
+        const counter = document.getElementById('subjectCounter');
+        const len = input.value.length;
+        counter.textContent = len + '/60';
+        counter.className = 'char-counter';
+        if (len > 50) counter.classList.add('warning');
+        if (len > 60) counter.classList.add('danger');
+    }
+
+    function updateWordCounter() {
+        const text = document.getElementById('email_editor').value;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        document.getElementById('wordCounter').textContent = words + ' mots';
+    }
+
+    // ===== LIVE PREVIEW =====
+    function updateLivePreview() {
+        const body = document.getElementById('email_editor').value;
+        const mode = document.getElementById('editor_mode').value;
+        const preview = document.getElementById('livePreviewFrame');
+
+        if (!body.trim()) {
+            preview.innerHTML = '<p class="preview-placeholder">Start typing to see preview...</p>';
+            return;
+        }
+
+        if (mode === 'html') {
+            preview.innerHTML = body;
+        } else {
+            preview.innerHTML = '<pre style="white-space:pre-wrap;font-family:inherit;">' +
+                body.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+        }
+    }
+
+    // ===== INSERT FUNCTIONS =====
+    function insertVar(variable) {
+        insertAtCursor(variable);
+    }
+
+    function insertEmoji(emoji) {
+        insertAtCursor(emoji);
+    }
+
+    function insertSpintax() {
+        insertAtCursor('{option1|option2|option3}');
+    }
+
+    function insertAtCursor(text) {
+        const textarea = document.getElementById('email_editor');
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const value = textarea.value;
+
+        textarea.value = value.substring(0, start) + text + value.substring(end);
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + text.length;
+
+        updateWordCounter();
+        triggerAutoSave();
+        updateLivePreview();
+    }
+
+    // ===== TEMPLATES =====
+    function insertTemplate() {
+        const select = document.getElementById('templateSelect');
+        const template = select.value;
+        let html = '';
+
+        switch (template) {
+            case 'button':
+                html = `<table cellpadding="0" cellspacing="0" role="presentation">
+  <tr>
+    <td style="background:#1fc8c8; border-radius:6px;">
+      <a href="https://YOUR_LINK" style="display:inline-block; padding:12px 24px; font-size:16px; color:#ffffff; text-decoration:none; font-family:Arial,sans-serif;">
+        Click Here
+      </a>
+    </td>
+  </tr>
+</table>`;
+                break;
+            case 'header':
+                html = `<table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td align="center" style="padding:20px 0;">
+      <img src="https://via.placeholder.com/200x60?text=LOGO" alt="Logo" width="200">
+    </td>
+  </tr>
+</table>`;
+                break;
+            case 'footer':
+                html = `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:30px; border-top:1px solid #e5e7eb;">
+  <tr>
+    <td style="padding:20px; font-size:12px; color:#6b7280; text-align:center;">
+      © 2024 Your Company | <a href="#">Unsubscribe</a>
+    </td>
+  </tr>
+</table>`;
+                break;
+            case 'promo':
+                html = `<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; margin:20px auto;">
+        <tr>
+          <td align="center" style="padding:20px;">
+            <img src="https://via.placeholder.com/600x300" width="600" alt="Banner">
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px; font-family:Arial,sans-serif;">
+            <h1 style="margin:0 0 15px 0;">Bonjour {% raw %}{{prenom}}{% endraw %},</h1>
+            <p style="font-size:16px; line-height:1.5;">
+              Découvrez notre offre exclusive...
+            </p>
+            <table cellpadding="0" cellspacing="0" style="margin:20px 0;">
+              <tr>
+                <td style="background:#1fc8c8; border-radius:6px;">
+                  <a href="#" style="display:inline-block; padding:12px 24px; color:#ffffff; text-decoration:none;">
+                    Découvrir l'offre
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>`;
+                break;
+        }
+
+        if (html) {
+            insertAtCursor(html);
+            // Switch to HTML mode
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.tab-btn[data-mode="html"]').classList.add('active');
+            document.getElementById('editor_mode').value = 'html';
+        }
+
+        select.value = '';
+    }
+
+    // ===== HTML VALIDATION =====
+    function validateHtml() {
+        const body = document.getElementById('email_editor').value;
+        const box = document.getElementById('htmlValidation');
+
+        if (!body.trim()) {
+            box.innerHTML = '<span class="valid">✓ Nothing to validate</span>';
+            box.style.display = 'block';
+            return;
+        }
+
+        const issues = [];
+
+        // Check for unclosed tags
+        const openTags = (body.match(/<[a-z][a-z0-9]*(?:\s[^>]*)?\s*(?<!\/)\s*>/gi) || []).length;
+        const closeTags = (body.match(/<\/[a-z][a-z0-9]*>/gi) || []).length;
+        if (openTags !== closeTags) {
+            issues.push('⚠️ Possible unclosed tags detected');
+        }
+
+        // Check for inline styles (recommended for email)
+        if (!body.includes('style=')) {
+            issues.push('💡 Consider using inline styles for email compatibility');
+        }
+
+        // Check for script tags
+        if (/<script/i.test(body)) {
+            issues.push('❌ Script tags are not allowed in emails');
+        }
+
+        // Check for table-based layout
+        if (!/<table/i.test(body) && body.includes('<div')) {
+            issues.push('💡 Consider using tables instead of divs for better email client support');
+        }
+
+        if (issues.length === 0) {
+            box.innerHTML = '<span class="valid">✓ HTML looks good!</span>';
+        } else {
+            box.innerHTML = issues.join('<br>');
+        }
+        box.style.display = 'block';
+    }
+
+    // ===== DARK MODE =====
+    function toggleDarkMode() {
+        document.querySelector('.email-form').classList.toggle('dark-mode');
+        document.querySelector('.code-editor').classList.toggle('dark-mode');
+    }
+
+    // ===== MODE TABS =====
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('editor_mode').value = btn.dataset.mode;
+            updateLivePreview();
+        });
+    });
+
+    // ===== MODALS =====
+    function openEmailPreview(body, mode) {
+        const container = document.getElementById("emailPreviewContent");
+        container.innerHTML = mode === "html" ? body : '<pre>' + body + '</pre>';
+        document.getElementById("emailPreviewModal").style.display = "block";
+    }
+
+    function closeEmailPreview() {
+        document.getElementById("emailPreviewModal").style.display = "none";
+    }
+
+    function openPasteHtml() {
+        document.getElementById("pasteHtmlModal").style.display = "block";
+    }
+
+    function closePasteHtml() {
+        document.getElementById("pasteHtmlModal").style.display = "none";
+    }
+
+    function applyPasteHtml() {
+        let html = document.getElementById("pasteHtmlTextarea").value;
+        if (!html.trim()) { alert("Nothing to paste"); return; }
+
+        html = html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
+        document.getElementById("email_editor").value = html;
+
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('.tab-btn[data-mode="html"]').classList.add('active');
+        document.getElementById('editor_mode').value = 'html';
+
+        updateLivePreview();
+        closePasteHtml();
+    }
+
+    // ===== INIT =====
+    document.addEventListener('DOMContentLoaded', function () {
+        updateSubjectCounter();
+        updateWordCounter();
+        updateLivePreview();
+
+        // Restore draft if exists
+        const draft = localStorage.getItem('emailDraft');
+        if (draft && !document.querySelector('input[name="email_id"]').value) {
+            const data = JSON.parse(draft);
+            if (confirm('Restore unsaved draft from ' + new Date(data.timestamp).toLocaleString() + '?')) {
+                document.getElementById('emailName').value = data.name || '';
+                document.getElementById('subjectInput').value = data.subject || '';
+                document.getElementById('email_editor').value = data.body || '';
+                updateWordCounter();
+                updateLivePreview();
+            }
+        }
+    });
+</script>
+
+{% endblock %}

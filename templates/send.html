@@ -1,0 +1,802 @@
+{% extends "base.html" %}
+
+{% block title %}Campaigns{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🚀 Campaigns</h1>
+    <p class="page-description">Create, manage and launch your email campaigns</p>
+</div>
+
+<!-- Saved Campaigns List (TOP) -->
+<div class="send-section" id="section-campaign-list" style="margin-bottom: 30px;">
+    <h3>📋 Saved Campaigns</h3>
+    <div style="max-height: 310px; overflow-y: auto; overflow-x: auto;">
+        <table class="data-table" id="campaignTable" style="margin-top: 0; position: relative;">
+            <thead
+                style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <tr>
+                    <th style="width: 20%;">Name</th>
+                    <th style="width: 15%;">Created</th>
+                    <th style="width: 15%;">SMTP</th>
+                    <th style="width: 10%;">Template</th>
+                    <th style="width: 5%;">Recipients</th>
+                    <th style="width: 5%;">Opens</th>
+                    <th style="width: 10%;">Status</th>
+                    <th style="width: 10%;">Code</th>
+                    <th style="width: 10%;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="campaignListBody">
+                <tr>
+                    <td colspan="9" style="text-align: center;">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="send-container">
+    <form id="campaignForm">
+        <div class="send-grid">
+            <!-- LEFT COLUMN: Configuration -->
+            <div class="send-config">
+
+                <!-- Section 1: Campaign & Email -->
+                <div class="send-section" id="section-email">
+                    <h3>📝 1. Campaign Details</h3>
+                    <input type="hidden" id="campaignId" name="campaign_id">
+                    <div class="form-group">
+                        <label for="campaignName">Campaign Name *</label>
+                        <input type="text" id="campaignName" name="campaign_name" placeholder="My Awesome Campaign..."
+                            required>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label for="emailSelect">Select email template *</label>
+                        <select id="emailSelect" name="email_id" required onchange="loadEmailPreview()">
+                            <option value="">-- Select an email --</option>
+                            {% for email in emails %}
+                            <option value="{{ email.id }}" data-subject="{{ email.subject }}"
+                                data-from-name="{{ email.from_name }}" data-from-email="{{ email.from_email }}">
+                                {{ email.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="email-info" id="emailInfo" style="display: none;">
+                        <div class="info-row"><span>Subject:</span> <strong id="emailSubject"></strong></div>
+                        <div class="info-row"><span>From:</span> <strong id="emailFrom"></strong></div>
+                        <div class="form-group" style="margin-top: 10px;">
+                            <select id="testEmail" style="flex:2;">
+                                {% for te in test_emails %}
+                                <option value="{{ te.email }}">{{ te.email }}{% if te.provider %} ({{ te.provider }}){%
+                                    endif %}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn-small btn-test" onclick="sendTestEmail()">📤 Send
+                                Test</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Audience Selection -->
+                <div class="send-section" id="section-audience">
+                    <h3>👥 2. Audience</h3>
+                    <div class="form-group">
+                        <label class="radio-label">
+                            <input type="radio" name="audience_type" value="all" checked onchange="updateAudienceUI()">
+                            All active contacts
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="audience_type" value="tags" onchange="updateAudienceUI()">
+                            By tags (include/exclude)
+                        </label>
+                    </div>
+                    <div id="tagsSection" style="display: none;">
+                        <div class="form-row" style="flex-direction: column; gap: 15px;">
+                            <div class="form-group">
+                                <label style="margin-bottom: 8px; display: block;">Include tags</label>
+                                <div class="tag-checkbox-list">
+                                    {% for tag in tags %}
+                                    <label class="tag-checkbox-item">
+                                        <input type="checkbox" name="include_tags_cb" value="{{ tag.id }}"
+                                            onchange="estimateRecipients()">
+                                        <div class="tag-checkbox-info">
+                                            <span>{{ tag.name }}</span>
+                                            <span class="tag-count">({{ tag.contact_count|default(0) }} contacts)</span>
+                                        </div>
+                                    </label>
+                                    {% else %}
+                                    <div class="empty-state" style="padding: 10px;">No tags available</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label style="margin-bottom: 8px; display: block;">Exclude tags</label>
+                                <div class="tag-checkbox-list">
+                                    {% for tag in tags %}
+                                    <label class="tag-checkbox-item">
+                                        <input type="checkbox" name="exclude_tags_cb" value="{{ tag.id }}"
+                                            onchange="estimateRecipients()">
+                                        <div class="tag-checkbox-info">
+                                            <span>{{ tag.name }}</span>
+                                        </div>
+                                    </label>
+                                    {% else %}
+                                    <div class="empty-state" style="padding: 10px;">No tags available</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="recipient-count" id="recipientCount">
+                        <span class="count-badge">📊 <span id="estimatedCount">0</span> recipients</span>
+                        <button type="button" class="btn-small" onclick="estimateRecipients()">🔄 Refresh</button>
+                    </div>
+                </div>
+
+                <!-- Section 3: SMTP Selection (Multi-select Round Robin) -->
+                <div class="send-section" id="section-smtp">
+                    <h3>📡 3. SMTP Servers (Round Robin)</h3>
+                    <p class="hint">Select one or more SMTPs. Emails rotate across selected servers.</p>
+                    <div class="smtp-checkbox-list" id="smtpCheckboxList">
+                        {% for smtp in smtp_servers %}
+                        <label class="smtp-checkbox-item {% if smtp.pause_reason %}paused{% endif %}">
+                            <input type="checkbox" name="smtp_ids" value="{{ smtp.id }}"
+                                data-domain="{{ smtp.sending_domain or smtp.domain }}"
+                                data-daily-limit="{{ smtp.daily_limit }}" data-rate-limit="{{ smtp.rate_limit }}"
+                                data-sent-today="{{ smtp.sent_today }}"
+                                data-paused="{{ 1 if smtp.pause_reason else 0 }}" data-dns="{{ smtp.dns_status }}"
+                                onchange="updateSmtpSelection()">
+                            <div class="smtp-checkbox-info">
+                                <strong>{{ smtp.name }}</strong>
+                                {% if smtp.pause_reason %}<span class="badge red">⚠️ Paused</span>{% endif %}
+                                <span class="smtp-limits">{{ smtp.daily_limit }}/day · {{ smtp.rate_limit }}/hr</span>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <div class="smtp-selection-summary" id="smtpSelectionSummary" style="display: none;">
+                        <div class="info-row"><span>Selected:</span> <strong id="smtpSelectedCount">0</strong> SMTPs
+                        </div>
+                        <div class="info-row"><span>Total capacity:</span> <strong id="smtpTotalCapacity">0</strong>/day
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Send Parameters -->
+                <div class="send-section" id="section-params">
+                    <h3>⏱️ 4. Parameters</h3>
+                    <div class="form-group">
+                        <label class="radio-label">
+                            <input type="radio" name="timing" value="now" checked onchange="updateTimingUI()">
+                            Send now
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="timing" value="scheduled" onchange="updateTimingUI()">
+                            Schedule for later
+                        </label>
+                    </div>
+                    <div id="scheduleSection" style="display: none;">
+                        <div class="form-group">
+                            <label for="scheduledAt">Date &amp; Time</label>
+                            <input type="datetime-local" id="scheduledAt" name="scheduled_at">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex:1;">
+                            <label style="margin-bottom:8px; display:block;">Sending Pace</label>
+
+                            <div style="display:flex; gap:15px; margin-bottom:10px;">
+                                <label class="radio-label">
+                                    <input type="radio" name="delay_type" value="fixed" checked
+                                        onchange="updateDelayUI()">
+                                    Fixed delay
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="delay_type" value="random" onchange="updateDelayUI()">
+                                    Random range
+                                </label>
+                            </div>
+
+                            <!-- Fixed Delay UI -->
+                            <div id="delayFixedUi">
+                                <label for="emailDelay">Delay between emails (sec)</label>
+                                <input type="number" id="emailDelay" name="email_delay" value="3" min="1" max="180"
+                                    onchange="updateDurationEstimate(); updateSummary();">
+                            </div>
+
+                            <!-- Random Delay UI -->
+                            <div id="delayRandomUi" style="display: none;">
+                                <div style="display: flex; gap: 15px;">
+                                    <div style="flex: 1;">
+                                        <label for="emailDelayMin">Min (sec)</label>
+                                        <input type="number" id="emailDelayMin" name="delay_min" min="0" value="3"
+                                            onchange="updateDurationEstimate(); updateSummary();">
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <label for="emailDelayMax">Max (sec)</label>
+                                        <input type="number" id="emailDelayMax" name="delay_max" min="0" value="8"
+                                            onchange="updateDurationEstimate(); updateSummary();">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label for="testInboxInterval">Test inbox every X emails</label>
+                            <input type="number" id="testInboxInterval" name="test_inbox_interval" value="100" min="10"
+                                max="10000">
+
+                            <div style="margin-top: 15px;">
+                                <label for="testEmailSelect">Test Email Address</label>
+                                <select id="testEmailSelect" name="test_email">
+                                    <option value="">-- First available --</option>
+                                    {% for te in test_emails %}
+                                    <option value="{{ te.email }}">{{ te.email }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="estimate-duration" id="estimateDuration">
+                        <span>⏱️ Estimated: <strong id="durationText">--</strong></span>
+                    </div>
+                </div>
+    </form>
+</div>
+
+<!-- RIGHT COLUMN: Preview & Summary -->
+<div class="send-preview">
+
+    <!-- Email Preview -->
+    <div class="preview-panel">
+        <h3>📄 Preview</h3>
+        <div class="preview-frame" id="previewFrame">
+            <p class="preview-empty">Select an email to preview</p>
+        </div>
+        <div class="spintax-variations" id="spintaxVariations" style="display: none;">
+            <h4>🎲 Spintax Variations</h4>
+            <div id="variationsList"></div>
+        </div>
+    </div>
+
+    <!-- Section 5: Summary -->
+    <div class="send-section summary-panel" id="section-summary">
+        <h3>📋 5. Summary</h3>
+        <div class="summary-grid">
+            <div class="summary-item">
+                <span class="label">Email:</span>
+                <span class="value" id="summaryEmail">-</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">Recipients:</span>
+                <span class="value" id="summaryRecipients">-</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">SMTP:</span>
+                <span class="value" id="summarySMTP">-</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">Delay:</span>
+                <span class="value" id="summaryDelay">-</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">Duration:</span>
+                <span class="value" id="summaryDuration">-</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Validations -->
+    <div class="send-section validations-panel" id="section-validations">
+        <h3>🛡️ 6. Validations</h3>
+        <div id="validationErrors" class="validation-list errors"></div>
+        <div id="validationWarnings" class="validation-list warnings"></div>
+        <div id="validationSuccess" class="validation-success" style="display: none;">
+            ✅ All checks passed
+        </div>
+    </div>
+
+    <!-- Section 7: Save Button -->
+    <div class="send-section send-actions" id="section-send">
+        <button type="button" class="btn-secondary" onclick="validateCampaign()">
+            🔍 Validate
+        </button>
+        <button type="button" id="sendBtn" class="btn-primary" onclick="saveCampaign()" disabled>
+            💾 Save Campaign
+        </button>
+    </div>
+</div>
+</div>
+</form>
+
+</div>
+
+<script>
+    let currentCampaignId = null;
+    let pollingInterval = null;
+
+    // Section 1: Email Selection
+    function loadEmailPreview() {
+        const select = document.getElementById('emailSelect');
+        const option = select.options[select.selectedIndex];
+        const emailInfo = document.getElementById('emailInfo');
+
+        if (!option.value) {
+            emailInfo.style.display = 'none';
+            document.getElementById('previewFrame').innerHTML = '<p class="preview-empty">Select an email to preview</p>';
+            updateSummary();
+            return;
+        }
+
+        emailInfo.style.display = 'block';
+        document.getElementById('emailSubject').textContent = option.dataset.subject || '-';
+        document.getElementById('emailFrom').textContent =
+            `${option.dataset.fromName} <${option.dataset.fromEmail}>`;
+
+        // Load preview via API
+        fetch(`/api/send/preview?email_id=${option.value}`)
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('previewFrame').innerHTML = data.body || '<p>No content</p>';
+                if (data.variations && data.variations.length > 0) {
+                    document.getElementById('spintaxVariations').style.display = 'block';
+                    document.getElementById('variationsList').innerHTML =
+                        data.variations.map(v => `<div class="variation">${v}</div>`).join('');
+                } else {
+                    document.getElementById('spintaxVariations').style.display = 'none';
+                }
+            });
+
+        updateSummary();
+    }
+
+    function sendTestEmail() {
+        const emailId = document.getElementById('emailSelect').value;
+        const testEmail = document.getElementById('testEmail').value;
+        // Use first selected SMTP for test
+        const checkedSmtp = document.querySelector('input[name="smtp_ids"]:checked');
+        const smtpId = checkedSmtp ? checkedSmtp.value : '';
+
+        if (!emailId || !testEmail || !smtpId) {
+            alert('Please select email, at least one SMTP, and enter test email address');
+            return;
+        }
+
+        fetch('/api/send/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email_id: emailId, smtp_id: smtpId, to: testEmail })
+        })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.success ? '✅ Test email sent!' : '❌ ' + data.error);
+            })
+            .catch(err => {
+                alert('❌ Network error: ' + err.message);
+            });
+    }
+
+    // Section 2: Audience
+    function updateAudienceUI() {
+        const tagsRadio = document.querySelector('input[name="audience_type"][value="tags"]');
+        document.getElementById('tagsSection').style.display = tagsRadio.checked ? 'block' : 'none';
+        estimateRecipients();
+    }
+
+    let estimateAborter = null;
+
+    function estimateRecipients() {
+        const audienceType = document.querySelector('input[name="audience_type"]:checked').value;
+        const includeTags = Array.from(document.querySelectorAll('input[name="include_tags_cb"]:checked')).map(cb => cb.value);
+        const excludeTags = Array.from(document.querySelectorAll('input[name="exclude_tags_cb"]:checked')).map(cb => cb.value);
+
+        if (estimateAborter) {
+            estimateAborter.abort();
+        }
+        estimateAborter = new AbortController();
+
+        fetch('/api/send/estimate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ audience_type: audienceType, include_tags: includeTags, exclude_tags: excludeTags }),
+            signal: estimateAborter.signal
+        })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('estimatedCount').textContent = data.count.toLocaleString();
+                updateSummary();
+                updateDurationEstimate();
+            })
+            .catch(err => {
+                if (err.name === 'AbortError') return;
+                console.error('Estimate fetch failed:', err);
+            });
+    }
+
+    // Section 3: SMTP Multi-select
+    function getSelectedSmtps() {
+        return Array.from(document.querySelectorAll('input[name="smtp_ids"]:checked'));
+    }
+
+    function updateSmtpSelection() {
+        const selected = getSelectedSmtps();
+        const summary = document.getElementById('smtpSelectionSummary');
+
+        if (selected.length > 0) {
+            summary.style.display = 'block';
+            document.getElementById('smtpSelectedCount').textContent = selected.length;
+            const totalCapacity = selected.reduce((sum, cb) => sum + (parseInt(cb.dataset.dailyLimit) || 500), 0);
+            document.getElementById('smtpTotalCapacity').textContent = totalCapacity.toLocaleString();
+        } else {
+            summary.style.display = 'none';
+        }
+
+        updateSummary();
+        updateDurationEstimate();
+
+        // Clear validation errors
+        document.getElementById('validationErrors').innerHTML = '';
+        document.getElementById('validationWarnings').innerHTML = '';
+    }
+
+    // Section 4: Parameters
+    function updateTimingUI() {
+        const scheduledRadio = document.querySelector('input[name="timing"][value="scheduled"]');
+        document.getElementById('scheduleSection').style.display = scheduledRadio.checked ? 'block' : 'none';
+    }
+
+    function updateDelayUI() {
+        const isRandom = document.querySelector('input[name="delay_type"][value="random"]').checked;
+        document.getElementById('delayFixedUi').style.display = isRandom ? 'none' : 'block';
+        document.getElementById('delayRandomUi').style.display = isRandom ? 'block' : 'none';
+
+        updateDurationEstimate();
+        updateSummary();
+    }
+
+    function updateDurationEstimate() {
+        const count = parseInt(document.getElementById('estimatedCount').textContent.replace(/[\s,.\u00a0]/g, '')) || 0;
+        const selected = getSelectedSmtps();
+        const delay = parseInt(document.getElementById('emailDelay').value) || 3;
+
+        if (count === 0 || selected.length === 0) {
+            document.getElementById('durationText').textContent = '--';
+            document.getElementById('summaryDuration').textContent = '--';
+            return;
+        }
+
+        // Calculate total daily capacity of all selected SMTPs
+        let totalDailyCapacity = 0;
+        selected.forEach(id => {
+            const label = document.querySelector(`label[for="smtp_${id}"]`);
+            if (label) {
+                const match = label.textContent.match(/(\d+)\/day/);
+                if (match) totalDailyCapacity += parseInt(match[1]);
+            }
+        });
+
+        // If we have daily capacity info and it's exceeded
+        let durationText;
+        if (totalDailyCapacity > 0 && count > totalDailyCapacity) {
+            const days = Math.ceil(count / totalDailyCapacity);
+            durationText = `~${days} days`;
+        } else {
+            // Find effective delay based on mode
+            const isRandom = document.querySelector('input[name="delay_type"][value="random"]').checked;
+            let effDelay = 3;
+            if (isRandom) {
+                const dMin = parseInt(document.getElementById('emailDelayMin').value) || parseInt(document.getElementById('emailDelay').value) || 3;
+                const dMax = parseInt(document.getElementById('emailDelayMax').value) || dMin;
+                effDelay = (dMin + dMax) / 2; // Use average for estimate
+            } else {
+                effDelay = parseInt(document.getElementById('emailDelay').value) || 3;
+            }
+
+            // Simple delay-based estimate
+            const totalSeconds = Math.ceil(count / selected.length) * effDelay;
+            const totalMinutes = totalSeconds / 60;
+            const totalHours = totalMinutes / 60;
+
+            if (totalMinutes < 1) durationText = `~${totalSeconds} seconds`;
+            else if (totalHours < 1) durationText = `~${Math.round(totalMinutes)} minutes`;
+            else if (totalHours < 24) durationText = `~${totalHours.toFixed(1)} hours`;
+            else durationText = `~${Math.ceil(totalHours / 24)} days`;
+        }
+
+        const isRandom = document.querySelector('input[name="delay_type"][value="random"]').checked;
+        let delayLabel = `${delay}s delay`;
+        if (isRandom) {
+            const dMin = parseInt(document.getElementById('emailDelayMin').value) || 3;
+            const dMax = parseInt(document.getElementById('emailDelayMax').value) || 3;
+            delayLabel = `${dMin}s-${dMax}s delay`;
+        }
+        durationText += ` (${selected.length} SMTP${selected.length > 1 ? 's' : ''}, ${delayLabel})`;
+
+        document.getElementById('durationText').textContent = durationText;
+        document.getElementById('summaryDuration').textContent = durationText;
+    }
+
+    function updateSummary() {
+        const emailSelect = document.getElementById('emailSelect');
+        const selected = getSelectedSmtps();
+        const isRandom = document.querySelector('input[name="delay_type"][value="random"]').checked;
+
+        let delayText = document.getElementById('emailDelay').value + 's';
+        if (isRandom) {
+            const dMin = document.getElementById('emailDelayMin').value;
+            const dMax = document.getElementById('emailDelayMax').value;
+            delayText = `${dMin}s to ${dMax}s`;
+        }
+
+        document.getElementById('summaryEmail').textContent =
+            emailSelect.options[emailSelect.selectedIndex]?.text || '-';
+        document.getElementById('summaryRecipients').textContent =
+            document.getElementById('estimatedCount').textContent;
+        document.getElementById('summarySMTP').textContent =
+            selected.length > 0 ? `${selected.length} SMTP(s)` : '-';
+        document.getElementById('summaryDelay').textContent = `${delayText} between emails`;
+    }
+
+    document.getElementById('emailDelay').addEventListener('change', () => {
+        updateDurationEstimate();
+        updateSummary();
+    });
+
+    // Section 6: Validations
+    function validateCampaign() {
+        const emailId = document.getElementById('emailSelect').value;
+        const smtpIds = getSelectedSmtps().map(cb => cb.value);
+        const audienceType = document.querySelector('input[name="audience_type"]:checked').value;
+        const includeTags = Array.from(document.querySelectorAll('input[name="include_tags_cb"]:checked')).map(cb => cb.value);
+        const excludeTags = Array.from(document.querySelectorAll('input[name="exclude_tags_cb"]:checked')).map(cb => cb.value);
+
+        fetch('/api/send/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email_id: emailId,
+                smtp_ids: smtpIds,
+                audience_type: audienceType,
+                include_tags: includeTags,
+                exclude_tags: excludeTags
+            })
+        })
+            .then(r => r.json())
+            .then(data => {
+                const errorsDiv = document.getElementById('validationErrors');
+                const warningsDiv = document.getElementById('validationWarnings');
+                const successDiv = document.getElementById('validationSuccess');
+                const sendBtn = document.getElementById('sendBtn');
+
+                errorsDiv.innerHTML = '';
+                warningsDiv.innerHTML = '';
+
+                if (data.errors && data.errors.length > 0) {
+                    errorsDiv.innerHTML = data.errors.map(e => `<div class="validation-item error">❌ ${e}</div>`).join('');
+                    sendBtn.disabled = true;
+                    successDiv.style.display = 'none';
+                } else {
+                    sendBtn.disabled = false;
+                    if (data.warnings && data.warnings.length > 0) {
+                        warningsDiv.innerHTML = data.warnings.map(w => `<div class="validation-item warning">⚠️ ${w}</div>`).join('');
+                    }
+                    successDiv.style.display = 'block';
+                }
+            });
+    }
+
+    // Section 7: Save Campaign
+    function saveCampaign() {
+        const campaignId = document.getElementById('campaignId').value;
+        const campaignName = document.getElementById('campaignName').value.trim();
+        const emailId = document.getElementById('emailSelect').value;
+        const smtpIds = getSelectedSmtps().map(cb => cb.value);
+        const audienceType = document.querySelector('input[name="audience_type"]:checked').value;
+        const includeTags = Array.from(document.querySelectorAll('input[name="include_tags_cb"]:checked')).map(cb => cb.value);
+        const excludeTags = Array.from(document.querySelectorAll('input[name="exclude_tags_cb"]:checked')).map(cb => cb.value);
+        const timing = document.querySelector('input[name="timing"]:checked').value;
+        const scheduledAt = timing === 'scheduled' ? document.getElementById('scheduledAt').value : null;
+
+        const isRandom = document.querySelector('input[name="delay_type"][value="random"]').checked;
+        const emailDelay = isRandom ? (parseInt(document.getElementById('emailDelayMin').value) || 0) : (parseInt(document.getElementById('emailDelay').value) || 0);
+        const delayMax = isRandom ? (parseInt(document.getElementById('emailDelayMax').value) || 0) : 0;
+
+        const testInboxInterval = parseInt(document.getElementById('testInboxInterval').value) || 100;
+        const testEmail = document.getElementById('testEmailSelect').value;
+
+        if (!campaignName) {
+            alert("Please enter a campaign name.");
+            return;
+        }
+
+        fetch('/api/campaign/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: campaignId || null,
+                name: campaignName,
+                email_id: emailId,
+                smtp_ids: smtpIds,
+                audience_type: audienceType,
+                include_tags: includeTags,
+                exclude_tags: excludeTags,
+                scheduled_at: scheduledAt,
+                email_delay: emailDelay,
+                delay_max: delayMax,
+                test_inbox_interval: testInboxInterval,
+                test_email: testEmail
+            })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Campaign saved successfully!');
+                    // Reset form to create new
+                    document.getElementById('campaignId').value = '';
+                    document.getElementById('campaignName').value = '';
+                    loadCampaignList();
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            })
+            .catch(err => {
+                alert('❌ Network error: ' + err.message);
+            });
+    }
+
+    // Saved Campaigns List
+    function loadCampaignList() {
+        fetch('/api/campaigns/list')
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('campaignListBody');
+                if (!data.campaigns || data.campaigns.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No campaigns yet. Create one below!</td></tr>';
+                    return;
+                }
+
+                // Reset simple styling
+                tbody.innerHTML = data.campaigns.map(c => {
+                    const statusMap = {
+                        draft: 'Draft', sending: 'Sending', paused: 'Paused',
+                        stopped: 'Stopped', completed: 'Completed', pending: 'Pending'
+                    };
+                    const statusLabel = statusMap[c.status] || c.status;
+                    const smtpLabel = (c.smtp_names && c.smtp_names.length) ? c.smtp_names.join(', ') : '--';
+
+                    // Pause code label
+                    const codeLabels = {
+                        daily_limit: '📅 Daily limit',
+                        hourly_limit: '🕐 Hourly limit',
+                        smtp_error: '⚡ SMTP error',
+                        smtp_paused: '⏸ SMTP paused',
+                        bounce_rate: '🔴 Bounce rate',
+                        auth_error: '🔐 Auth error',
+                        connection_error: '🔌 Connection',
+                        no_smtp: '❌ No SMTP'
+                    };
+                    const codeLabel = c.pause_code ? (codeLabels[c.pause_code] || c.pause_code) : '';
+                    const codeColor = ['bounce_rate', 'auth_error', 'no_smtp'].includes(c.pause_code) ? '#ef4444' : '#f59e0b';
+                    const open = c.open_count || 0;
+
+                    return `
+                        <tr>
+                            <td><strong>${c.name}</strong></td>
+                            <td>${c.created_at ? c.created_at.substring(0, 10) : '--'}</td>
+                            <td style="font-size:12px;">${smtpLabel}</td>
+                            <td>${c.email_id || '--'}</td>
+                            <td>${(c.total_recipients || 0).toLocaleString()}</td>
+                            <td style="text-align:center; color:#8b5cf6; font-weight:600;">${open}</td>
+                            <td><span class="status-badge status-${c.status}">${statusLabel}</span></td>
+                            <td style="font-size:11px; color:${codeColor}; white-space:nowrap;">${codeLabel}</td>
+                            <td>
+                                <button class="btn-small btn-secondary" onclick="editCampaign(${c.id})" ${c.status === 'sending' ? 'disabled' : ''}>✏️ Edit</button>
+                                <button class="btn-small btn-danger" onclick="deleteCampaign(${c.id})" ${c.status === 'sending' ? 'disabled' : ''}>🗑️</button>
+                            </td>
+                        </tr>`;
+                }).join('');
+            });
+    }
+
+    function editCampaign(id) {
+        // Fetch campaign data
+        fetch(`/api/campaign/${id}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('❌ Error loading campaign: ' + data.error);
+                    return;
+                }
+
+                const c = data.campaign;
+
+                // Clear ID to force creation of a new campaign
+                document.getElementById('campaignId').value = '';
+
+                // Keep name empty or add "Copy of "
+                document.getElementById('campaignName').value = `Copy of ${c.name}`;
+
+                // Select email
+                const emailSelect = document.getElementById('emailSelect');
+                emailSelect.value = c.email_id;
+                loadEmailPreview();
+
+                // Set Audience type and trigger UI
+                const audRadios = document.querySelectorAll('input[name="audience_type"]');
+                audRadios.forEach(r => r.checked = (r.value === c.audience_type));
+                updateAudienceUI();
+
+                // Check Include tags
+                document.querySelectorAll('input[name="include_tags_cb"]').forEach(cb => {
+                    cb.checked = c.include_tags && c.include_tags.includes(parseInt(cb.value));
+                });
+
+                // Check Exclude tags
+                document.querySelectorAll('input[name="exclude_tags_cb"]').forEach(cb => {
+                    cb.checked = c.exclude_tags && c.exclude_tags.includes(parseInt(cb.value));
+                });
+
+                // Check SMTP servers
+                document.querySelectorAll('input[name="smtp_ids"]').forEach(cb => {
+                    cb.checked = c.smtp_ids && c.smtp_ids.includes(parseInt(cb.value));
+                });
+                updateSmtpSelection();
+
+                // Timing
+                const timingRadios = document.querySelectorAll('input[name="timing"]');
+                const isScheduled = !!c.scheduled_at;
+                timingRadios.forEach(r => r.checked = (r.value === (isScheduled ? 'scheduled' : 'now')));
+                updateTimingUI();
+                if (isScheduled) {
+                    document.getElementById('scheduledAt').value = c.scheduled_at;
+                }
+
+                // Advanced params
+                if (c.delay_max > 0 && c.delay_max > c.email_delay) {
+                    document.querySelector('input[name="delay_type"][value="random"]').checked = true;
+                    document.getElementById('emailDelayMin').value = c.email_delay || 3;
+                    document.getElementById('emailDelayMax').value = c.delay_max;
+                } else {
+                    document.querySelector('input[name="delay_type"][value="fixed"]').checked = true;
+                    document.getElementById('emailDelay').value = c.email_delay || 3;
+                }
+                updateDelayUI();
+
+                document.getElementById('testInboxInterval').value = c.test_inbox_interval || 100;
+                if (c.test_email) {
+                    document.getElementById('testEmailSelect').value = c.test_email;
+                } else {
+                    document.getElementById('testEmailSelect').value = "";
+                }
+
+                // Refresh estimates
+                estimateRecipients();
+
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            })
+            .catch(err => alert('❌ Error loading campaign: ' + err.message));
+    }
+    function deleteCampaign(id) {
+        if (!confirm('Supprimer cette campagne définitivement ?')) return;
+        fetch(`/api/campaign/delete/${id}`, { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => { if (data.success) loadCampaignList(); });
+    }
+
+    // Init
+    estimateRecipients();
+    loadCampaignList();
+    // Auto-refresh list every 5s
+    setInterval(loadCampaignList, 5000);
+
+    // Clear validation errors when user changes selections
+    document.getElementById('emailSelect').addEventListener('change', () => {
+        document.getElementById('validationErrors').innerHTML = '';
+        document.getElementById('validationWarnings').innerHTML = '';
+    });
+</script>
+{% endblock %}

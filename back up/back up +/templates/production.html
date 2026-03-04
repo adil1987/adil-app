@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Production</h1>
+
+<div class="production-top">
+
+    <!-- CONFIG -->
+    <div class="production-form">
+        <form method="post">
+
+            <label>Email à envoyer</label>
+            <select name="email_name" required>
+                {% for e in emails %}
+                <option value="{{ e.name }}">{{ e.name }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Serveur SMTP</label>
+            <select name="smtp_name" required>
+                <option value="{{ smtp.name }}">{{ smtp.name }}</option>
+            </select>
+
+            <label>Vitesse (emails / heure)</label>
+            <input type="number" name="rate" value="100">
+
+            <label>Email de test</label>
+            <input type="email" name="test_email" placeholder="test@domain.tld">
+
+            <div style="margin-top:10px;">
+                <button type="submit" name="action" value="save">
+                    Sauvegarder configuration
+                </button>
+                <button type="submit" name="action" value="test">
+                    Envoyer test (simulé)
+                </button>
+            </div>
+
+        </form>
+
+        {% if test_result %}
+        <p style="margin-top:10px; color:green;">
+            {{ test_result }}
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- LISTE -->
+    <div class="production-list">
+        <h2>Productions</h2>
+
+        {% if productions %}
+        <ul>
+            {% for p in productions %}
+            <li>
+                <strong>{{ p.email_name }}</strong><br>
+                SMTP: {{ p.smtp_name }}<br>
+                Vitesse: {{ p.rate }}<br>
+                Statut: {{ p.status }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>Aucune production configurée.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}

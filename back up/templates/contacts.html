@@ -1,0 +1,790 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>📋 Contacts</h1>
+
+<!-- ================= STATS BAR ================= -->
+<div class="contacts-stats">
+    <div class="stat-item">
+        <span class="stat-value">{{ counts.total }}</span>
+        <span class="stat-label">Total</span>
+    </div>
+    <div class="stat-item green">
+        <span class="stat-value">{{ counts.active }}</span>
+        <span class="stat-label">Active</span>
+    </div>
+    <div class="stat-item orange">
+        <span class="stat-value">{{ counts.unsubscribed }}</span>
+        <span class="stat-label">Unsubscribed</span>
+    </div>
+    <div class="stat-item red">
+        <span class="stat-value">{{ counts.bounced }}</span>
+        <span class="stat-label">Bounced</span>
+    </div>
+</div>
+
+<div class="contacts-layout">
+
+    <!-- ================= LEFT: IMPORT SECTION ================= -->
+    <div class="panel import-panel">
+        <h2>📥 Import Contacts</h2>
+
+        <form method="post" enctype="multipart/form-data" id="importForm">
+            <div class="import-dropzone" id="dropzone">
+                <input type="file" name="file" id="fileInput" accept=".csv,.xlsx" required>
+                <div class="dropzone-content">
+                    <span class="dropzone-icon">📁</span>
+                    <p>Drag & drop CSV or XLSX file here</p>
+                    <p class="hint">or click to browse</p>
+                </div>
+                <div id="fileSelected" class="file-selected" style="display:none;">
+                    <span class="file-icon">📄</span>
+                    <span id="fileName"></span>
+                </div>
+            </div>
+
+            <!-- Column Mapping -->
+            <div id="columnMapping" class="column-mapping" style="display:none;">
+                <h3>Map Columns</h3>
+                <div class="mapping-row">
+                    <label>Email column:</label>
+                    <select name="col_email" id="colEmail" required>
+                        <option value="">-- Select --</option>
+                    </select>
+                </div>
+                <div class="mapping-row">
+                    <label>Prénom column:</label>
+                    <select name="col_prenom" id="colPrenom">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+                <div class="mapping-row">
+                    <label>Nom column:</label>
+                    <select name="col_nom" id="colNom">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tags Selection -->
+            {% if all_tags %}
+            <div class="tags-select-wrapper">
+                <label>Assign tags (optional):</label>
+                <div class="tags-checkboxes">
+                    {% for tag in all_tags %}
+                    <label class="tag-checkbox">
+                        <input type="checkbox" name="import_tags" value="{{ tag.id }}">
+                        {{ tag.name }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="import-options">
+                <label>
+                    <input type="checkbox" name="skip_duplicates" checked>
+                    Skip duplicate emails
+                </label>
+                <label>
+                    <input type="checkbox" name="skip_header" checked>
+                    First row is header
+                </label>
+            </div>
+
+            <!-- Import Filters -->
+            <div class="import-filters">
+                <div class="filters-header" onclick="toggleFilters()">
+                    <h3>🔍 Filtres de validation</h3>
+                    <span id="filtersToggleIcon">▼</span>
+                </div>
+
+                <div id="filtersContent" class="filters-content" style="display: none;">
+                    <!-- Syntax Filters -->
+                    <div class="filter-group">
+                        <h4>📝 Syntaxe & Format</h4>
+                        <label class="filter-item" title="Rejette les emails mal formés (sans @, domaine invalide)">
+                            <input type="checkbox" name="filter_validate_format" checked>
+                            <span class="filter-name">Format email valide</span>
+                            <span class="filter-desc">Rejette les emails mal formés (sans @, domaine invalide)</span>
+                        </label>
+                        <label class="filter-item" title="Rejette les emails trop courts (<6) ou trop longs (>254)">
+                            <input type="checkbox" name="filter_check_length" checked>
+                            <span class="filter-name">Longueur email</span>
+                            <span class="filter-desc">Rejette les emails trop courts (&lt;6) ou trop longs (&gt;254
+                                caractères)</span>
+                        </label>
+                        <label class="filter-item" title="Rejette les emails avec espaces, virgules, points-virgules">
+                            <input type="checkbox" name="filter_check_chars" checked>
+                            <span class="filter-name">Caractères interdits</span>
+                            <span class="filter-desc">Rejette les emails avec espaces, virgules, points-virgules</span>
+                        </label>
+                        <label class="filter-item" title="Rejette les domaines sans extension (.com, .fr, etc.)">
+                            <input type="checkbox" name="filter_check_tld" checked>
+                            <span class="filter-name">Extension TLD valide</span>
+                            <span class="filter-desc">Rejette les domaines sans extension (.com, .fr, etc.)</span>
+                        </label>
+                    </div>
+
+                    <!-- Domain Filters -->
+                    <div class="filter-group">
+                        <h4>🚫 Domaines</h4>
+                        <label class="filter-item"
+                            title="Rejette mailinator, tempmail, yopmail et +50 domaines jetables">
+                            <input type="checkbox" name="filter_block_disposable">
+                            <span class="filter-name">Bloquer emails jetables</span>
+                            <span class="filter-desc">Rejette mailinator, tempmail, yopmail et +50 domaines
+                                jetables</span>
+                        </label>
+                        <label class="filter-item" title="Rejette info@, contact@, support@, admin@, noreply@...">
+                            <input type="checkbox" name="filter_block_role">
+                            <span class="filter-name">Bloquer emails de rôle</span>
+                            <span class="filter-desc">Rejette info@, contact@, support@, admin@, noreply@...</span>
+                        </label>
+                    </div>
+
+                    <!-- Type Filters -->
+                    <div class="filter-group">
+                        <h4>🏢 Type de cible</h4>
+                        <label class="filter-item"
+                            title="Rejette Gmail, Yahoo, Hotmail... (garde seulement domaines pro)">
+                            <input type="checkbox" name="filter_block_free_webmail">
+                            <span class="filter-name">B2B uniquement</span>
+                            <span class="filter-desc">Rejette Gmail, Yahoo, Hotmail... (garde seulement domaines
+                                pro)</span>
+                        </label>
+                        <label class="filter-item"
+                            title="Garde seulement Gmail, Yahoo, Hotmail... (rejette domaines pro)">
+                            <input type="checkbox" name="filter_only_free_webmail">
+                            <span class="filter-name">B2C uniquement</span>
+                            <span class="filter-desc">Garde seulement Gmail, Yahoo, Hotmail... (rejette domaines
+                                pro)</span>
+                        </label>
+                    </div>
+
+                    <!-- Typo Detection -->
+                    <div class="filter-group">
+                        <h4>✏️ Qualité</h4>
+                        <label class="filter-item"
+                            title="Détecte gmai.com, hotmal.com, yaho.com et autres fautes courantes">
+                            <input type="checkbox" name="filter_detect_typos">
+                            <span class="filter-name">Détecter les typos</span>
+                            <span class="filter-desc">Détecte gmai.com, hotmal.com, yaho.com et fautes courantes</span>
+                        </label>
+                        <label class="filter-item" title="Corrige automatiquement les typos (gmai.com → gmail.com)">
+                            <input type="checkbox" name="filter_auto_correct_typos">
+                            <span class="filter-name">Corriger automatiquement</span>
+                            <span class="filter-desc">Corrige les typos au lieu de rejeter (gmai.com → gmail.com)</span>
+                        </label>
+                    </div>
+
+                    <!-- Show Rejected Option -->
+                    <div class="filter-group show-rejected-option">
+                        <label class="filter-item">
+                            <input type="checkbox" name="show_rejected" checked>
+                            <span class="filter-name">📋 Afficher les contacts rejetés</span>
+                            <span class="filter-desc">Liste les emails invalides après l'import</span>
+                        </label>
+                    </div>
+                </div><!-- end filtersContent -->
+            </div>
+
+            <div class="form-actions">
+                <input type="hidden" name="action" value="import">
+                <input type="hidden" id="importConfirmed" value="">
+                <button type="submit" class="btn-primary">📥 Import</button>
+            </div>
+        </form>
+
+        {% if import_result %}
+        <div class="import-result {{ import_result.status }}">
+            <strong>{{ import_result.title }}</strong><br>
+            {{ import_result.message }}
+
+            {% if import_result.rejected_list %}
+            <div class="rejected-contacts-list">
+                <h4>⚠️ Contacts rejetés ({{ import_result.rejected_list|length }})</h4>
+                <ul>
+                    {% for item in import_result.rejected_list %}
+                    <li>
+                        <span class="rejected-email">{{ item.contact.email }}</span>
+                        <span class="rejected-reason">{{ item.reason }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+
+
+        <!-- ================= MANUAL ADD ================= -->
+        <div class="manual-add-section">
+            <h3>➕ Add Single Contact</h3>
+            <form method="post" class="manual-add-form">
+                <input type="email" name="manual_email" required placeholder="email@example.com">
+                <input type="text" name="manual_prenom" placeholder="Prénom">
+                <input type="text" name="manual_nom" placeholder="Nom">
+                {% if all_tags %}
+                <select name="manual_tags" multiple style="height:60px;">
+                    {% for tag in all_tags %}
+                    <option value="{{ tag.id }}">{{ tag.name }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                <button type="submit" name="action" value="add_manual">➕ Add</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= RIGHT: CONTACTS LIST ================= -->
+    <div class="panel contacts-list-panel">
+
+        <!-- Filter Tabs -->
+        <div class="contacts-tabs">
+            <a href="/contacts?status=active"
+                class="tab {% if current_status == 'active' and not current_tag %}active{% endif %}">
+                Active ({{ counts.active }})
+            </a>
+            <a href="/contacts?status=unsubscribed"
+                class="tab {% if current_status == 'unsubscribed' %}active{% endif %}">
+                Unsub ({{ counts.unsubscribed }})
+            </a>
+            <a href="/contacts?status=bounced" class="tab {% if current_status == 'bounced' %}active{% endif %}">
+                Bounced ({{ counts.bounced }})
+            </a>
+            <a href="/contacts?status=invalid" class="tab {% if current_status == 'invalid' %}active{% endif %}"
+                style="border-left: 2px solid #cbd5e1; margin-left: 10px; padding-left: 15px;">
+                Non conforme ({{ counts.invalid }})
+            </a>
+        </div>
+
+        <!-- Search + Tag Filter + Export -->
+        <div class="contacts-filters">
+            <form method="get" action="/contacts" class="search-form">
+                <input type="hidden" name="status" value="{{ current_status }}">
+                <input type="text" name="q" id="searchInput" placeholder="🔍 Search email, prénom, nom..."
+                    value="{{ search_query or '' }}">
+                <button type="submit">Search</button>
+            </form>
+
+            <select id="tagFilter" onchange="filterByTag()">
+                <option value="">All Tags</option>
+                <option value="untagged" {% if current_tag=='untagged' %}selected{% endif %}>📭 Non tagé ({{
+                    counts.untagged }})</option>
+                {% for tag in all_tags %}
+                <option value="{{ tag.id }}" {% if current_tag==tag.id %}selected{% endif %}>
+                    🏷️ {{ tag.name }} ({{ tag.contact_count }})
+                </option>
+                {% endfor %}
+            </select>
+
+            <a href="/contacts/export?status={{ current_status }}{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}"
+                class="btn-export">📤 Export CSV</a>
+        </div>
+
+        <!-- Contacts Table -->
+        {% if contacts %}
+        <table class="data-table" id="contactsTable">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                    <th>Email</th>
+                    <th>Prénom</th>
+                    <th>Nom</th>
+                    <th>Tags</th>
+                    <th>Ajouté</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in contacts %}
+                <tr>
+                    <td><input type="checkbox" class="contact-checkbox" value="{{ c.id }}"></td>
+                    <td class="clickable-email" onclick="openContactHistory({{ c.id }}, '{{ c.email }}')">
+                        {{ c.email }}
+                    </td>
+                    <td>{{ c.prenom or '-' }}</td>
+                    <td>{{ c.nom or '-' }}</td>
+                    <td>
+                        {% for tag in contacts_tags.get(c.id, []) %}
+                        <span class="tag-badge small">{{ tag.name }}</span>
+                        {% endfor %}
+                    </td>
+                    <td class="date-cell">{{ c.created_at[:10] if c.created_at else '-' }}</td>
+                    <td class="actions">
+                        <button type="button" class="btn-edit"
+                            onclick="openEditModal({{ c.id }}, '{{ c.email }}', '{{ c.prenom or '' }}', '{{ c.nom or '' }}')">✏️</button>
+                        <form method="post" style="display:inline;" onsubmit="return confirm('Delete this contact?');">
+                            <input type="hidden" name="action" value="delete_contact">
+                            <input type="hidden" name="contact_id" value="{{ c.id }}">
+                            <button type="submit" class="btn-delete">✕</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Bulk Actions -->
+        <div class="bulk-actions">
+            <span id="selectedCount">0 selected</span>
+            <button type="button" onclick="bulkDelete()" class="btn-danger">🗑 Delete</button>
+            <button type="button" onclick="bulkUnsubscribe()">❌ Unsub</button>
+            <button type="button" onclick="openBulkTagModal('add')">🏷️ Add Tag</button>
+            <button type="button" onclick="openBulkTagModal('remove')">➖ Remove Tag</button>
+            <button type="button" onclick="openDeleteByTagModal()" class="btn-danger">🗑️ Delete by Tag</button>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-row">
+            <div class="per-page-selector">
+                <label>Show:</label>
+                <select id="perPageSelect" onchange="changePerPage()">
+                    <option value="50" {% if per_page==50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if per_page==100 %}selected{% endif %}>100</option>
+                    <option value="500" {% if per_page==500 %}selected{% endif %}>500</option>
+                    <option value="1000" {% if per_page==1000 %}selected{% endif %}>1000</option>
+                </select>
+            </div>
+            {% if total_pages > 1 %}
+            <div class="pagination">
+                {% if page > 1 %}
+                <a href="/contacts?status={{ current_status }}&page={{ page - 1 }}&per_page={{ per_page }}">&laquo;
+                    Prev</a>
+                {% endif %}
+                <span>Page {{ page }} / {{ total_pages }}</span>
+                {% if page < total_pages %} <a
+                    href="/contacts?status={{ current_status }}&page={{ page + 1 }}&per_page={{ per_page }}">Next
+                    &raquo;</a>
+                    {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        {% else %}
+        <div class="empty-state">
+            <span style="font-size:48px;">📭</span>
+            <p>No contacts in this list.</p>
+            <p class="hint">Import a CSV or XLSX file to get started.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- ================= BULK TAG MODAL ================= -->
+<div id="bulkTagModal" class="modal">
+    <div class="modal-content">
+        <h3 id="bulkTagModalTitle">Add Tag to Selected</h3>
+        <form method="post" id="bulkTagForm">
+            <input type="hidden" name="action" id="bulkTagAction" value="bulk_add_tag">
+            <input type="hidden" name="ids" id="bulkTagIds" value="">
+            <label>Select Tag:</label>
+            <select name="tag_id" required>
+                {% for tag in all_tags %}
+                <option value="{{ tag.id }}">{{ tag.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="modal-actions">
+                <button type="button" onclick="closeBulkTagModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Confirm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= EDIT CONTACT MODAL ================= -->
+<div id="editContactModal" class="modal">
+    <div class="modal-content">
+        <h3>✏️ Edit Contact</h3>
+        <form method="post" id="editContactForm">
+            <input type="hidden" name="action" value="edit_contact">
+            <input type="hidden" name="contact_id" id="editContactId" value="">
+            <label>Email:</label>
+            <input type="email" name="edit_email" id="editEmail" required>
+            <label>Prénom:</label>
+            <input type="text" name="edit_prenom" id="editPrenom">
+            <label>Nom:</label>
+            <input type="text" name="edit_nom" id="editNom">
+            <div class="modal-actions">
+                <button type="button" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= DELETE BY TAG MODAL ================= -->
+<div id="deleteByTagModal" class="modal">
+    <div class="modal-content">
+        <h3>🗑️ Delete All Contacts by Tag</h3>
+        <p class="warning-text">⚠️ This will permanently delete ALL contacts with the selected tag!</p>
+        <form method="post" id="deleteByTagForm"
+            onsubmit="return confirm('Are you absolutely sure? This cannot be undone!');">
+            <input type="hidden" name="action" value="bulk_delete_by_tag">
+            <label>Select Tag to Delete:</label>
+            <select name="tag_id" required>
+                {% for tag in all_tags %}
+                <option value="{{ tag.id }}">{{ tag.name }} ({{ tag.contact_count }} contacts)</option>
+                {% endfor %}
+            </select>
+            <div class="modal-actions">
+                <button type="button" onclick="closeDeleteByTagModal()">Cancel</button>
+                <button type="submit" class="btn-danger">Delete All</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= CONTACT HISTORY MODAL ================= -->
+<div id="contactHistoryModal" class="modal">
+    <div class="modal-content modal-large">
+        <h3>📧 Email History: <span id="historyContactEmail"></span></h3>
+        <div id="historyContent">
+            <p>Loading...</p>
+        </div>
+        <div class="modal-actions">
+            <button type="button" onclick="closeHistoryModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= IMPORT PREVIEW MODAL ================= -->
+<div id="importPreviewModal" class="modal">
+    <div class="modal-content modal-large">
+        <h3>👀 Preview Import Data</h3>
+        <p>Please review the first few rows of your file before importing.</p>
+        <div id="modalPreviewTable" class="preview-table-container"></div>
+        <div class="modal-actions">
+            <button type="button" onclick="closeImportPreviewModal()">Cancel</button>
+            <button type="button" class="btn-primary" onclick="confirmImport()">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= JAVASCRIPT ================= -->
+<script>
+    // Drag & Drop
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+
+    // Fix: Only trigger click if not already clicking on the input
+    dropzone.addEventListener('click', (e) => {
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
+
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelect();
+        }
+    });
+
+    fileInput.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect() {
+        const file = fileInput.files[0];
+        if (file) {
+            document.querySelector('.dropzone-content').style.display = 'none';
+            document.getElementById('fileSelected').style.display = 'flex';
+            document.getElementById('fileName').textContent = file.name;
+
+            // Try to read headers for column mapping
+            readFileHeaders(file);
+        }
+    }
+
+    function readFileHeaders(file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            let headers = [];
+
+            if (file.name.endsWith('.csv')) {
+                const lines = e.target.result.split('\n');
+                if (lines.length > 0) {
+                    headers = lines[0].split(/[,;]/).map(h => h.trim().replace(/"/g, ''));
+                }
+            } else {
+                // For XLSX, we'll let the server handle it
+                headers = ['Column A', 'Column B', 'Column C', 'Column D', 'Column E'];
+            }
+
+            populateColumnSelects(headers);
+            document.getElementById('columnMapping').style.display = 'block';
+        };
+        reader.readAsText(file);
+    }
+
+    function populateColumnSelects(headers) {
+        const selects = ['colEmail', 'colPrenom', 'colNom'];
+        const defaults = {
+            'colEmail': ['email', 'mail', 'e-mail', 'courriel'],
+            'colPrenom': ['prenom', 'prénom', 'firstname', 'first_name', 'first name'],
+            'colNom': ['nom', 'lastname', 'last_name', 'last name', 'name']
+        };
+
+        selects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            select.innerHTML = selectId === 'colEmail' ? '<option value="">-- Select --</option>' : '<option value="">-- None --</option>';
+
+            headers.forEach((header, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = header;
+
+                // Auto-select based on common names
+                const headerLower = header.toLowerCase();
+                if (defaults[selectId].some(d => headerLower.includes(d))) {
+                    option.selected = true;
+                }
+
+                select.appendChild(option);
+            });
+        });
+    }
+
+    // Intercept Form Submission
+    document.getElementById('importForm').addEventListener('submit', function (e) {
+        if (!document.getElementById('importConfirmed').value) {
+            e.preventDefault(); // Stop normal submission
+            showImportPreviewModal();
+        }
+    });
+
+    function showImportPreviewModal() {
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Please select a file first');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            let rows = [];
+
+            if (file.name.endsWith('.csv')) {
+                const lines = e.target.result.split('\n').filter(l => l.trim().length > 0).slice(0, 6);
+                rows = lines.map(line => line.split(/[,;]/).map(cell => cell.trim().replace(/"/g, '')));
+            } else {
+                // If it's XLSX, preview is hard without a library, just show a message
+                rows = [["Preview only available for CSV files. (XLSX will still import correctly)"]];
+            }
+
+            if (rows.length > 0) {
+                let html = '<table class="data-table"><thead><tr>';
+                rows[0].forEach(h => html += `<th>${h}</th>`);
+                html += '</tr></thead><tbody>';
+
+                rows.slice(1, 6).forEach(row => {
+                    html += '<tr>';
+                    row.forEach(cell => html += `<td>${cell}</td>`);
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                document.getElementById('modalPreviewTable').innerHTML = html;
+            } else {
+                document.getElementById('modalPreviewTable').innerHTML = '<p>No data found to preview.</p>';
+            }
+            document.getElementById('importPreviewModal').style.display = 'flex';
+        };
+        reader.readAsText(file);
+    }
+
+    function closeImportPreviewModal() {
+        document.getElementById('importPreviewModal').style.display = 'none';
+    }
+
+    function confirmImport() {
+        document.getElementById('importConfirmed').value = "1";
+        document.getElementById('importForm').submit();
+    }
+
+    // Search
+    function filterTable() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('#contactsTable tbody tr');
+
+        rows.forEach(row => {
+            const email = row.cells[1].textContent.toLowerCase();
+            row.style.display = email.includes(query) ? '' : 'none';
+        });
+    }
+
+    // Tag Filter
+    function filterByTag() {
+        const tagId = document.getElementById('tagFilter').value;
+        const url = new URL(window.location.href);
+        if (tagId) {
+            url.searchParams.set('tag', tagId);
+        } else {
+            url.searchParams.delete('tag');
+        }
+        window.location.href = url.toString();
+    }
+
+    // Select All
+    function toggleSelectAll() {
+        const checked = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.contact-checkbox').forEach(cb => cb.checked = checked);
+        updateSelectedCount();
+    }
+
+    document.querySelectorAll('.contact-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const count = document.querySelectorAll('.contact-checkbox:checked').length;
+        document.getElementById('selectedCount').textContent = count + ' selected';
+    }
+
+    function getSelectedIds() {
+        return Array.from(document.querySelectorAll('.contact-checkbox:checked')).map(cb => cb.value);
+    }
+
+    function bulkDelete() {
+        const ids = getSelectedIds();
+        if (ids.length === 0) {
+            alert('Select at least one contact');
+            return;
+        }
+        if (confirm(`Delete ${ids.length} contacts?`)) {
+            // Submit via form
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.innerHTML = `<input name="action" value="bulk_delete"><input name="ids" value="${ids.join(',')}">`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    function bulkUnsubscribe() {
+        const ids = getSelectedIds();
+        if (ids.length === 0) {
+            alert('Select at least one contact');
+            return;
+        }
+        if (confirm(`Mark ${ids.length} contacts as unsubscribed?`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.innerHTML = `<input name="action" value="bulk_unsubscribe"><input name="ids" value="${ids.join(',')}">`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    // Bulk Tag Modal
+    function openBulkTagModal(mode) {
+        const ids = getSelectedIds();
+        if (ids.length === 0) {
+            alert('Select at least one contact');
+            return;
+        }
+        document.getElementById('bulkTagIds').value = ids.join(',');
+        if (mode === 'add') {
+            document.getElementById('bulkTagModalTitle').textContent = 'Add Tag to Selected';
+            document.getElementById('bulkTagAction').value = 'bulk_add_tag';
+        } else {
+            document.getElementById('bulkTagModalTitle').textContent = 'Remove Tag from Selected';
+            document.getElementById('bulkTagAction').value = 'bulk_remove_tag';
+        }
+        document.getElementById('bulkTagModal').style.display = 'flex';
+    }
+
+    function closeBulkTagModal() {
+        document.getElementById('bulkTagModal').style.display = 'none';
+    }
+
+    // Contact History Modal
+    function openContactHistory(contactId, email) {
+        document.getElementById('historyContactEmail').textContent = email;
+        document.getElementById('historyContent').innerHTML = '<p>Loading...</p>';
+        document.getElementById('contactHistoryModal').style.display = 'flex';
+
+        // Fetch history via API
+        fetch(`/api/contact/${contactId}/history`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.emails && data.emails.length > 0) {
+                    let html = '<table class="data-table"><thead><tr><th>Campaign</th><th>Subject</th><th>Sent</th><th>Opened</th></tr></thead><tbody>';
+                    data.emails.forEach(e => {
+                        const opened = e.opened ? '<span class="badge green">Yes</span>' : '<span class="badge gray">No</span>';
+                        html += `<tr><td>${e.campaign || '-'}</td><td>${e.subject || '-'}</td><td>${e.sent_at || '-'}</td><td>${opened}</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('historyContent').innerHTML = html;
+                } else {
+                    document.getElementById('historyContent').innerHTML = '<p class="empty-state">No emails sent to this contact yet.</p>';
+                }
+            })
+            .catch(err => {
+                document.getElementById('historyContent').innerHTML = '<p>Error loading history.</p>';
+            });
+    }
+
+    function closeHistoryModal() {
+        document.getElementById('contactHistoryModal').style.display = 'none';
+    }
+
+    // Edit Contact Modal
+    function openEditModal(id, email, prenom, nom) {
+        document.getElementById('editContactId').value = id;
+        document.getElementById('editEmail').value = email;
+        document.getElementById('editPrenom').value = prenom;
+        document.getElementById('editNom').value = nom;
+        document.getElementById('editContactModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+        document.getElementById('editContactModal').style.display = 'none';
+    }
+
+    // Delete by Tag Modal
+    function openDeleteByTagModal() {
+        document.getElementById('deleteByTagModal').style.display = 'flex';
+    }
+
+    function closeDeleteByTagModal() {
+        document.getElementById('deleteByTagModal').style.display = 'none';
+    }
+
+    // Toggle Filters Section
+    function toggleFilters() {
+        const content = document.getElementById('filtersContent');
+        const icon = document.getElementById('filtersToggleIcon');
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            icon.textContent = '▲';
+        } else {
+            content.style.display = 'none';
+            icon.textContent = '▼';
+        }
+    }
+
+    // Per Page Selector
+    function changePerPage() {
+        const perPage = document.getElementById('perPageSelect').value;
+        const url = new URL(window.location.href);
+        url.searchParams.set('per_page', perPage);
+        url.searchParams.set('page', '1'); // Reset to page 1
+        window.location.href = url.toString();
+    }
+</script>
+
+{% endblock %}

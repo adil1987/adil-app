@@ -1,0 +1,2729 @@
+/* ===== RESET ===== */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #eef1f5;
+    color: #333;
+}
+
+/* ===== TOP BAR (FIXED) ===== */
+.topbar {
+    height: 55px;
+    background: #2f3b46;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+    width: 230px;
+    background: #344450;
+    height: calc(100vh - 55px);
+    position: fixed;
+    top: 55px;
+    left: 0;
+}
+
+.sidebar a {
+    display: block;
+    padding: 12px 20px;
+    color: #cfd8df;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+    background: #1fc8c8;
+    color: #fff;
+}
+
+/* ===== MAIN ===== */
+.main {
+    margin-left: 230px;
+    padding: 20px;
+    margin-top: 55px;
+}
+
+/* ===== CARDS / PANELS ===== */
+.card,
+.panel,
+.email-form,
+.email-list,
+.production-form,
+.production-list,
+.form-panel,
+.table-panel {
+    background: #fff;
+    border: 1px solid #dcdfe3;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+/* ===== TITLES ===== */
+h1 {
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+/* ===== FORMS ===== */
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #dcdfe3;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+textarea {
+    font-family: monospace;
+}
+
+/* ===== BUTTONS ===== */
+button {
+    background: #1fc8c8;
+    border: none;
+    color: #fff;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+/* ===== LAYOUTS ===== */
+.emails-top,
+.production-top {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+/* ===== LISTS ===== */
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 8px 0;
+}
+
+/* ===== PREVIEW ===== */
+.preview-box {
+    background: #f2f4f7;
+    border: 1px dashed #ccc;
+    padding: 15px;
+}
+
+pre {
+    white-space: pre-wrap;
+}
+
+/* =========================================================
+   DASHBOARD — V1 LOCKED (CLEAN)
+   ========================================================= */
+
+/* Layout global : cartes à gauche / charts à droite */
+.dashboard-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 380px) 1fr;
+    gap: 20px;
+    align-items: start;
+    min-width: 0;
+}
+
+/* ===== LEFT : STATS CARDS ===== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.stat-card {
+    background: #fff;
+    border: 1px solid #dcdfe3;
+    padding: 16px;
+}
+
+.stat-value {
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #8a97a5;
+    margin-top: 6px;
+    text-transform: uppercase;
+}
+
+/* Color accents */
+.stat-card.blue .stat-value {
+    color: #3b82f6;
+}
+
+.stat-card.purple .stat-value {
+    color: #8b5cf6;
+}
+
+.stat-card.teal .stat-value {
+    color: #14b8a6;
+}
+
+.stat-card.red .stat-value {
+    color: #ef4444;
+}
+
+/* ===== RIGHT : CHARTS ===== */
+.dashboard-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.dashboard-panels .panel {
+    padding: 16px;
+    margin-bottom: 0;
+}
+
+/* Charts container */
+.chart-container {
+    width: 100%;
+    height: 180px;
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-container canvas {
+    max-width: 100% !important;
+}
+
+/* Monthly chart panel – fit content */
+.dashboard-panels .panel:last-child {
+    min-height: auto;
+}
+
+.dashboard-panels .panel:last-child .chart-container {
+    height: auto;
+}
+
+.email-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.email-item a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.email-delete-form {
+    margin: 0;
+}
+
+.btn-delete {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.btn-delete:hover {
+    opacity: 0.7;
+}
+
+/* ===== MODAL PASTE HTML ===== */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: #fff;
+    max-width: 700px;
+    margin: 80px auto;
+    padding: 20px;
+    border-radius: 6px;
+}
+
+.modal-content textarea {
+    width: 100%;
+    font-family: monospace;
+}
+
+.modal-actions {
+    margin-top: 10px;
+    text-align: right;
+}
+
+.modal-actions button {
+    margin-left: 8px;
+}
+
+.modal-actions .btn-primary {
+    background: #22c55e;
+}
+
+.modal-actions .btn-primary:hover {
+    background: #16a34a;
+}
+
+/* Warning Modal List */
+.warning-list {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.warning-list p {
+    margin: 8px 0;
+    color: #92400e;
+    font-size: 14px;
+}
+
+.warning-list p:first-child {
+    margin-top: 0;
+}
+
+.warning-list p:last-child {
+    margin-bottom: 0;
+}
+
+.modal-small {
+    max-width: 450px;
+}
+
+.modal-small h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #374151;
+}
+
+.modal-small p {
+    color: #6b7280;
+    margin-bottom: 15px;
+}
+
+.editor-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.tab-btn {
+    padding: 6px 14px;
+    border: 1px solid #dcdfe3;
+    background: #1fc8c8;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.tab-btn.active {
+    background: #22c55e;
+    color: #ffffff;
+    border-color: #22c55e;
+    font-weight: 600;
+}
+
+.email-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.btn-preview {
+    background: #1fc8c8;
+    border: 1px solid #1fc8c8;
+    padding: 4px 6px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.btn-preview:hover {
+    background: #1fc8c8;
+}
+
+/* =========================================================
+   NEW STYLES - SQLite Version
+   ========================================================= */
+
+/* ===== SMTP/SETTINGS LAYOUT ===== */
+.smtp-layout,
+.settings-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.smtp-form,
+.smtp-list {
+    background: #fff;
+    border: 1px solid #dcdfe3;
+    padding: 15px;
+}
+
+/* ===== DATA TABLES ===== */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.data-table th,
+.data-table td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 13px;
+}
+
+.data-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+.data-table tr:hover {
+    background: #f9fafb;
+}
+
+.data-table .actions {
+    white-space: nowrap;
+}
+
+/* ===== BADGES ===== */
+.badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge.green {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.badge.red {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge.orange {
+    background: #ffedd5;
+    color: #9a3412;
+}
+
+.badge.gray {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* ===== CHECKBOX ROW ===== */
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.checkbox-row input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.checkbox-row label {
+    margin: 0;
+}
+
+/* ===== EDIT/DELETE BUTTONS ===== */
+.btn-edit {
+    background: #f3f4f6;
+    border: 1px solid #dcdfe3;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.btn-edit:hover {
+    background: #e5e7eb;
+}
+
+/* ===== CONTACTS STATS BAR ===== */
+.contacts-stats {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-item {
+    background: #fff;
+    border: 1px solid #dcdfe3;
+    padding: 15px 20px;
+    text-align: center;
+    flex: 1;
+}
+
+.stat-item .stat-value {
+    font-size: 28px;
+    font-weight: 600;
+    display: block;
+}
+
+.stat-item .stat-label {
+    font-size: 13px;
+    color: #6b7280;
+    text-transform: uppercase;
+}
+
+.stat-item.green .stat-value {
+    color: #16a34a;
+}
+
+.stat-item.orange .stat-value {
+    color: #ea580c;
+}
+
+.stat-item.red .stat-value {
+    color: #dc2626;
+}
+
+/* ===== CONTACTS TABS ===== */
+.contacts-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 15px;
+}
+
+.contacts-tabs .tab {
+    padding: 10px 20px;
+    background: #fff;
+    border: 1px solid #dcdfe3;
+    text-decoration: none;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.contacts-tabs .tab.active {
+    background: #1fc8c8;
+    color: #fff;
+    border-color: #1fc8c8;
+}
+
+.contacts-tabs .tab:hover:not(.active) {
+    background: #f3f4f6;
+}
+
+/* ===== PAGINATION ===== */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.pagination a {
+    padding: 8px 15px;
+    background: #1fc8c8;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+}
+
+.pagination a:hover {
+    opacity: 0.9;
+}
+
+/* ===== IMPORT FORM ===== */
+.import-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.import-form input[type="file"] {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.import-result {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.import-result.success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.import-result.error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* ===== INLINE FORM ===== */
+.inline-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.inline-form input,
+.inline-form select {
+    margin-bottom: 0;
+}
+
+/* ===== HINTS ===== */
+.hint {
+    color: #6b7280;
+    font-size: 13px;
+    margin-bottom: 15px;
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+    color: #9ca3af;
+    text-align: center;
+    padding: 30px;
+    font-style: italic;
+}
+
+/* ===== VARIABLE BUTTONS ===== */
+.var-buttons {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.var-btn {
+    background: #1fc8c8;
+    border: none;
+    color: #fff;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.var-btn:hover {
+    opacity: 0.9;
+}
+
+/* ===== CHARACTER COUNTER ===== */
+.char-counter {
+    float: right;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.char-counter.warning {
+    color: #ea580c;
+}
+
+.char-counter.danger {
+    color: #dc2626;
+}
+
+/* =========================================================
+   EMAIL EDITOR - PROFESSIONAL
+   ========================================================= */
+
+/* NEW Layout: Editor+List on top, Preview at bottom */
+.emails-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.emails-top-row {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 20px;
+    align-items: start;
+}
+
+.emails-top-row .email-form {
+    min-height: 0;
+}
+
+.emails-top-row .email-list {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* Preview at bottom - full width */
+.preview-panel-bottom {
+    background: #fff;
+    border: 1px solid #dcdfe3;
+    padding: 15px;
+    min-height: 200px;
+}
+
+.preview-panel-bottom h3 {
+    margin: 0 0 10px 0;
+}
+
+.preview-panel-bottom .live-preview-frame {
+    background: #f8fafc;
+    border: 1px dashed #e2e8f0;
+    padding: 20px;
+    min-height: 250px;
+    max-height: 800px;
+    overflow-y: auto;
+}
+
+/* Keep old container for backward compatibility */
+.emails-container-new {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 20px;
+    align-items: start;
+}
+
+.email-right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.email-right-column .email-list {
+    max-height: 45vh;
+    overflow-y: auto;
+}
+
+.email-right-column .preview-panel {
+    flex: 1;
+}
+
+/* New button */
+.btn-new {
+    background: #22c55e;
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-new:hover {
+    background: #16a34a;
+}
+
+/* Form rows */
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    margin-bottom: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.form-group input,
+.form-group select {
+    margin-bottom: 0;
+}
+
+/* Advanced section */
+.advanced-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-bottom: 15px;
+}
+
+.advanced-section summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: #475569;
+}
+
+.advanced-section .form-row {
+    margin-top: 15px;
+    margin-bottom: 0;
+}
+
+/* Preview header with expand button */
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.preview-header h3 {
+    margin: 0;
+}
+
+.btn-expand {
+    background: #e5e7eb;
+    border: 1px solid #d1d5db;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.btn-expand:hover {
+    background: #d1d5db;
+}
+
+/* Expanded preview modal (fullscreen) */
+.modal-fullscreen {
+    width: 90vw;
+    max-width: 1000px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-fullscreen .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-fullscreen .btn-close {
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.expanded-preview-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-top: 15px;
+    min-height: 400px;
+}
+
+/* Footer section */
+.footer-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #e5e7eb;
+}
+
+.footer-section label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.field-hint {
+    display: block;
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+/* Text fallback section */
+.text-fallback-section {
+    margin-top: 15px;
+}
+
+.fallback-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.fallback-header label {
+    margin-bottom: 0;
+}
+
+.btn-generate {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-generate:hover {
+    background: #e5e7eb;
+}
+
+/* Warning box */
+.warning-box {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    color: #92400e;
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-top: 8px;
+    font-size: 13px;
+}
+
+/* Small modal */
+.modal-small {
+    max-width: 400px;
+}
+
+.modal-small p {
+    margin: 15px 0;
+    color: #64748b;
+}
+
+/* Keep old 3-column layout for backward compatibility */
+.emails-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr 280px;
+    gap: 15px;
+    align-items: start;
+}
+
+/* Editor Header */
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.editor-header h2 {
+    margin: 0;
+}
+
+.editor-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-dark-mode {
+    background: #f3f4f6;
+    border: 1px solid #dcdfe3;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.auto-save-status {
+    font-size: 12px;
+    color: #22c55e;
+}
+
+.auto-save-status.unsaved {
+    color: #ea580c;
+}
+
+/* Toolbar */
+.editor-toolbar {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.toolbar-label {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+/* Emoji Buttons */
+.emoji-btn {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.emoji-btn:hover {
+    background: #f3f4f6;
+}
+
+/* Tool Button */
+.tool-btn {
+    background: #f3f4f6;
+    border: 1px solid #dcdfe3;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.tool-btn:hover {
+    background: #e5e7eb;
+}
+
+/* Template and Footer Select */
+#templateSelect,
+#footerSelect {
+    padding: 5px 10px;
+    font-size: 13px;
+    width: auto;
+    margin-bottom: 0;
+}
+
+/* Body Header */
+.body-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.word-counter {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* Code Editor */
+.code-editor {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    background: #fafafa;
+}
+
+.code-editor.dark-mode {
+    background: #1e1e1e;
+    color: #d4d4d4;
+}
+
+/* Dark Mode Form */
+.email-form.dark-mode {
+    background: #2d2d2d;
+    color: #e5e5e5;
+}
+
+.email-form.dark-mode input,
+.email-form.dark-mode select,
+.email-form.dark-mode textarea {
+    background: #3d3d3d;
+    color: #e5e5e5;
+    border-color: #4d4d4d;
+}
+
+/* Validation Box */
+.validation-box {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.validation-box .valid {
+    color: #16a34a;
+}
+
+/* Live Preview Panel */
+.preview-panel {
+    position: static;
+    /* removed sticky behavior */
+}
+
+.preview-panel h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.live-preview-frame {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    min-height: 400px;
+    max-height: 70vh;
+    overflow: auto;
+    padding: 15px;
+}
+
+.preview-placeholder {
+    color: #9ca3af;
+    text-align: center;
+    font-style: italic;
+    padding: 50px 20px;
+}
+
+/* Modal Large */
+.modal-large {
+    max-width: 900px;
+}
+
+.modal-preview-content {
+    border: 1px solid #e5e7eb;
+    padding: 15px;
+    max-height: 60vh;
+    overflow: auto;
+    background: #fff;
+}
+
+/* Primary Button */
+.btn-primary {
+    background: #22c55e !important;
+}
+
+.btn-primary:hover {
+    background: #16a34a !important;
+}
+
+/* Email List Compact */
+.email-list h3 {
+    margin-top: 0;
+}
+
+.email-list ul {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .emails-container {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .email-list {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 800px) {
+    .emails-container {
+        grid-template-columns: 1fr;
+    }
+
+    .email-list {
+        grid-column: span 1;
+    }
+}
+
+/* =========================================================
+   CONTACTS PAGE
+   ========================================================= */
+
+/* 2 Column Layout */
+.contacts-layout {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+/* Import Panel */
+.import-panel {
+    position: sticky;
+    top: 75px;
+}
+
+/* Dropzone */
+.import-dropzone {
+    border: 2px dashed #dcdfe3;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    margin-bottom: 15px;
+}
+
+.import-dropzone:hover,
+.import-dropzone.dragover {
+    border-color: #1fc8c8;
+    background: #f0fdfa;
+}
+
+.import-dropzone input[type="file"] {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.dropzone-content {
+    pointer-events: none;
+}
+
+.dropzone-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.dropzone-content p {
+    margin: 5px 0;
+    color: #6b7280;
+}
+
+.file-selected {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.file-icon {
+    font-size: 24px;
+}
+
+/* Column Mapping */
+.column-mapping {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.column-mapping h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+}
+
+.mapping-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.mapping-row label {
+    flex: 0 0 120px;
+    font-size: 13px;
+}
+
+.mapping-row select {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* Import Options */
+.import-options {
+    margin-bottom: 15px;
+}
+
+.import-options label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+
+.import-options input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+/* Preview Section */
+.preview-section {
+    margin-top: 15px;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 15px;
+}
+
+.preview-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+}
+
+.preview-table-container {
+    max-height: 200px;
+    overflow: auto;
+    font-size: 12px;
+}
+
+.preview-table-container .data-table th,
+.preview-table-container .data-table td {
+    padding: 6px;
+}
+
+/* Contacts Search */
+.contacts-search {
+    margin-bottom: 15px;
+}
+
+.contacts-search input {
+    margin-bottom: 0;
+}
+
+/* Bulk Actions */
+.bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e5e7eb;
+}
+
+#selectedCount {
+    font-size: 13px;
+    color: #6b7280;
+    flex: 1;
+}
+
+.btn-danger {
+    background: #dc2626 !important;
+}
+
+.btn-danger:hover {
+    background: #b91c1c !important;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .contacts-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .import-panel {
+        position: static;
+    }
+}
+
+/* =========================================================
+   TAGS PAGE
+   ========================================================= */
+
+.tags-layout {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+.tag-form {
+    position: sticky;
+    top: 75px;
+}
+
+.tag-badge {
+    display: inline-block;
+    background: #e5e7eb;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.btn-cancel {
+    display: inline-block;
+    padding: 8px 14px;
+    background: #f3f4f6;
+    color: #6b7280;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.btn-cancel:hover {
+    background: #e5e7eb;
+}
+
+/* Tags Selection in Import */
+.tags-select-wrapper {
+    margin-bottom: 15px;
+}
+
+.tags-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.tag-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: #f3f4f6;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.tag-checkbox input {
+    width: auto;
+    margin: 0;
+}
+
+.tag-checkbox:hover {
+    background: #e5e7eb;
+}
+
+/* Responsive */
+@media (max-width: 800px) {
+    .tags-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .tag-form {
+        position: static;
+    }
+}
+
+/* =========================================================
+   CONTACTS PAGE - ENHANCED
+   ========================================================= */
+
+/* Filters Row */
+.contacts-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.contacts-filters input {
+    flex: 2;
+    margin-bottom: 0;
+}
+
+.contacts-filters select {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* Small Tag Badge */
+.tag-badge.small {
+    font-size: 11px;
+    padding: 2px 6px;
+    margin-right: 4px;
+}
+
+/* Manual Add Section */
+.manual-add-section {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.manual-add-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+}
+
+.manual-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.manual-add-form input,
+.manual-add-form select {
+    margin-bottom: 0;
+}
+
+.manual-add-form button {
+    margin-top: 5px;
+}
+
+/* =========================================================
+   MODALS
+   ========================================================= */
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content.modal-large {
+    max-width: 700px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-content h3 {
+    margin: 0 0 15px 0;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* =========================================================
+   PAGINATION ROW
+   ========================================================= */
+
+.pagination-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.per-page-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.per-page-selector label {
+    color: #6b7280;
+    margin-bottom: 0;
+}
+
+.per-page-selector select {
+    width: auto;
+    padding: 4px 8px;
+    margin-bottom: 0;
+}
+
+/* =========================================================
+   CLICKABLE EMAIL
+   ========================================================= */
+
+.clickable-email {
+    cursor: pointer;
+    color: #4f46e5;
+}
+
+.clickable-email:hover {
+    text-decoration: underline;
+}
+
+/* =========================================================
+   SEARCH FORM
+   ========================================================= */
+
+.search-form {
+    display: flex;
+    gap: 8px;
+}
+
+.search-form input[type="text"] {
+    width: 250px;
+    margin-bottom: 0;
+}
+
+.search-form button {
+    padding: 8px 14px;
+    margin-bottom: 0;
+}
+
+/* =========================================================
+   EXPORT BUTTON
+   ========================================================= */
+
+.btn-export {
+    padding: 8px 14px;
+    background: #10b981;
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-export:hover {
+    background: #059669;
+}
+
+/* =========================================================
+   EDIT BUTTON
+   ========================================================= */
+
+.btn-edit {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 14px;
+}
+
+.btn-edit:hover {
+    background: #e5e7eb;
+    border-radius: 4px;
+}
+
+/* =========================================================
+   DATE CELL
+   ========================================================= */
+
+.date-cell {
+    color: #6b7280;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* =========================================================
+   WARNING TEXT
+   ========================================================= */
+
+.warning-text {
+    color: #dc2626;
+    background: #fef2f2;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 13px;
+}
+
+/* =========================================================
+   IMPORT FILTERS
+   ========================================================= */
+
+.import-filters {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.import-filters h3 {
+    margin: 0 0 15px 0;
+    font-size: 14px;
+    color: #334155;
+}
+
+.filter-group {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.filter-group:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.filter-group h4 {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.filter-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    background: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.filter-item:hover {
+    background: #f1f5f9;
+}
+
+.filter-item input[type="checkbox"] {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.filters-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding-bottom: 5px;
+}
+
+.filters-header:hover h3 {
+    color: #2563eb;
+}
+
+.filters-header h3 {
+    margin: 0;
+}
+
+#filtersToggleIcon {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.filters-content {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+/* Rejected Contacts List */
+.rejected-contacts-list {
+    margin-top: 15px;
+    background: #fff;
+    border: 1px solid #fee2e2;
+    border-radius: 6px;
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.rejected-contacts-list h4 {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    color: #dc2626;
+}
+
+.rejected-contacts-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.rejected-contacts-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 12px;
+}
+
+.rejected-contacts-list li:last-child {
+    border-bottom: none;
+}
+
+.rejected-email {
+    font-weight: 500;
+    color: #dc2626;
+}
+
+.rejected-reason {
+    color: #64748b;
+    font-style: italic;
+}
+
+.filter-name {
+    font-weight: 500;
+    color: #1e293b;
+    font-size: 13px;
+}
+
+.filter-desc {
+    font-size: 12px;
+    color: #64748b;
+    flex: 1;
+}
+
+/* SMTP Page Styles */
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.form-column h3 {
+    margin: 0 0 15px 0;
+    color: #1e293b;
+    font-size: 14px;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.sent-counter {
+    font-weight: 500;
+    color: #64748b;
+}
+
+.sent-counter.limit-reached {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e2e8f0;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    margin: 20px auto;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.success-text {
+    color: #16a34a;
+    font-weight: 500;
+}
+
+.error-text {
+    color: #dc2626;
+    font-weight: 500;
+}
+
+.modal-large {
+    max-width: 700px;
+}
+
+.modal-small {
+    max-width: 400px;
+}
+
+.btn-toggle {
+    background: #f1f5f9;
+}
+
+.btn-test {
+    background: #dbeafe;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 5px;
+}
+
+.btn-small {
+    padding: 4px 8px;
+    font-size: 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* SMTP Metrics */
+.metrics-cell {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.reputation-score {
+    font-weight: 600;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.reputation-score.high {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.reputation-score.medium {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.reputation-score.low {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.bounce-rate {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.bounce-rate.danger {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.badge.blue {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+/* SMTP Inline Form */
+.smtp-add-section {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.smtp-inline-form {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 25px;
+    margin-top: 15px;
+}
+
+.smtp-inline-form h3 {
+    margin: 0 0 15px 0;
+    color: #1e293b;
+    font-size: 14px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 8px;
+}
+
+.form-actions {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+/* DNS Status Badges */
+.dns-status-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 24px;
+}
+
+.dns-badge {
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dns-badge.ok {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.dns-badge.warn {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.dns-badge.partial {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.dns-badge.pending {
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: pointer;
+}
+
+.dns-results {
+    text-align: left;
+    padding: 10px;
+}
+
+.dns-results p {
+    margin: 5px 0;
+}
+
+/* Checkbox alignment */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #374151;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    accent-color: #3b82f6;
+    cursor: pointer;
+}
+
+/* ===================== */
+/* SEND CAMPAIGN PAGE    */
+/* ===================== */
+.send-container {
+    width: 100%;
+}
+
+.send-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    align-items: start;
+    /* Prevents columns from stretching */
+}
+
+/* Left and right columns - no sticky */
+.send-config,
+.send-preview {
+    position: static !important;
+    overflow: visible;
+    align-self: flex-start;
+}
+
+.send-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.send-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 14px;
+    color: #1e293b;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 10px;
+}
+
+/* Email/SMTP Info boxes */
+.email-info,
+.smtp-info {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px;
+}
+
+.info-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.info-row span:first-child {
+    color: #64748b;
+    min-width: 60px;
+}
+
+/* Recipient count badge */
+.recipient-count {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+    padding: 10px;
+    background: #eff6ff;
+    border-radius: 8px;
+}
+
+.count-badge {
+    font-weight: 600;
+    color: #1e40af;
+}
+
+/* Radio labels */
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    cursor: pointer;
+}
+
+.radio-label input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #3b82f6;
+}
+
+/* Tag Checkbox List */
+.tag-checkbox-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.tag-checkbox-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tag-checkbox-item:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+/* Tooltip for Filter Descriptions */
+.filter-item {
+    position: relative;
+}
+
+.filter-desc {
+    position: absolute;
+    left: 0;
+    top: 100%;
+    margin-top: 5px;
+    background: #1e293b;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    white-space: normal;
+    z-index: 1000;
+    width: max-content;
+    max-width: 250px;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease 1s, visibility 0.3s ease 1s;
+    /* 1 second delay */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Arrow for Tooltip */
+.filter-desc::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 15px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #1e293b transparent;
+}
+
+.filter-item:hover .filter-desc {
+    opacity: 1;
+    visibility: visible;
+}
+
+.tag-checkbox-item input[type="checkbox"] {
+    margin-top: 3px;
+    width: 16px;
+    height: 16px;
+    accent-color: #3b82f6;
+    cursor: pointer;
+}
+
+.tag-checkbox-info {
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+    color: #1e293b;
+    line-height: 1.4;
+}
+
+.tag-checkbox-info span:first-child {
+    font-weight: 500;
+}
+
+.tag-count {
+    color: #64748b;
+    font-size: 11px;
+}
+
+/* Preview panel */
+.preview-panel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.preview-frame {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 400px;
+    max-height: 800px;
+    overflow-y: auto;
+}
+
+.preview-empty {
+    color: #94a3b8;
+    text-align: center;
+    padding: 50px;
+}
+
+.spintax-variations {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.spintax-variations h4 {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 10px;
+}
+
+.variation {
+    background: #fef3c7;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+/* Summary panel */
+.summary-panel {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.summary-item {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.summary-item .label {
+    color: #64748b;
+}
+
+.summary-item .value {
+    font-weight: 600;
+    color: #15803d;
+}
+
+/* Validations */
+.validations-panel {
+    background: #fff;
+}
+
+.validation-list {
+    margin-bottom: 10px;
+}
+
+.validation-item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+
+.validation-item.error {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.validation-item.warning {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.validation-success {
+    background: #dcfce7;
+    color: #16a34a;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Send actions */
+.send-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding: 15px 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.btn-send {
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.btn-send:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Monitoring panel */
+.monitoring-panel {
+    background: #1e293b;
+    color: #fff;
+    padding: 25px;
+    margin-top: 30px;
+}
+
+.monitoring-panel h3 {
+    color: #fff;
+    border-color: #334155;
+}
+
+.monitoring-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.campaign-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-queued {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.status-sending {
+    background: #3b82f6;
+    color: #fff;
+}
+
+.status-paused {
+    background: #f97316;
+    color: #fff;
+}
+
+.status-completed {
+    background: #22c55e;
+    color: #fff;
+}
+
+.status-stopped {
+    background: #ef4444;
+    color: #fff;
+}
+
+.status-error {
+    background: #dc2626;
+    color: #fff;
+}
+
+.status-pending {
+    background: #fbbf24;
+    color: #000;
+}
+
+.status-draft {
+    background: #9ca3af;
+    color: #fff;
+}
+
+.monitoring-controls {
+    display: flex;
+    gap: 10px;
+}
+
+/* Progress bar */
+.progress-section {
+    margin-bottom: 20px;
+}
+
+.progress-bar {
+    background: #334155;
+    height: 24px;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+    transition: width 0.3s ease;
+}
+
+.progress-stats {
+    display: flex;
+    gap: 20px;
+    font-size: 14px;
+    color: #94a3b8;
+}
+
+.progress-stats .error-count {
+    color: #f87171;
+}
+
+/* Console log */
+.console-log {
+    background: #0f172a;
+    border-radius: 8px;
+    padding: 15px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.console-log h4 {
+    color: #64748b;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.log-entries {
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.log-entry {
+    padding: 4px 0;
+    color: #94a3b8;
+    border-bottom: 1px solid #1e293b;
+}
+
+.log-entry.success {
+    color: #22c55e;
+}
+
+.log-entry.error {
+    color: #f87171;
+}
+
+.log-entry.warning {
+    color: #fbbf24;
+}
+
+/* Confirm modal */
+.confirm-content {
+    padding: 20px 0;
+    text-align: center;
+}
+
+.warning-text {
+    color: #dc2626;
+    font-weight: 500;
+    margin-top: 10px;
+}
+
+/* Estimate duration */
+.estimate-duration {
+    margin-top: 15px;
+    padding: 10px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #475569;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .send-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================================
+   OFFERS PAGE
+   ========================================================= */
+.offers-layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 20px;
+    align-items: start;
+}
+
+.offers-list,
+.offers-form {
+    background: #fff;
+    border: 1px solid #dcdfe3;
+    padding: 15px;
+}
+
+.offers-list h3,
+.offers-form h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.url-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.form-actions-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.btn-cancel {
+    display: inline-block;
+    padding: 8px 14px;
+    background: #f3f4f6;
+    border: 1px solid #dcdfe3;
+    color: #374151;
+    text-decoration: none;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.btn-cancel:hover {
+    background: #e5e7eb;
+}
+
+@media (max-width: 1024px) {
+    .offers-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== SEND PAGE: SMTP CHECKBOX LIST ===== */
+.smtp-checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding: 2px;
+}
+
+.smtp-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.smtp-checkbox-item:hover {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+}
+
+.smtp-checkbox-item input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.smtp-checkbox-item input[type="checkbox"]:checked+.smtp-checkbox-info {
+    font-weight: 500;
+}
+
+.smtp-checkbox-item:has(input:checked) {
+    background: #eef2ff;
+    border-color: #818cf8;
+}
+
+.smtp-checkbox-item.paused {
+    opacity: 0.6;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.smtp-checkbox-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.smtp-checkbox-info strong {
+    font-size: 14px;
+}
+
+.smtp-limits {
+    font-size: 12px;
+    color: #6b7280;
+    margin-left: auto;
+}
+
+.smtp-selection-summary {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+}
+
+.smtp-selection-summary .info-row {
+    display: flex;
+    gap: 6px;
+    font-size: 13px;
+}
+
+/* =========================================================
+   EMAILS PAGE - SAVED EMAILS LIST
+   ========================================================= */
+.email-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.email-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    /* Identique à .data-table td */
+    border-bottom: 1px solid #e5e7eb;
+    /* Ligne séparatrice simple */
+    background: transparent;
+}
+
+.email-item:last-child {
+    border-bottom: none;
+}
+
+.email-item:hover {
+    background: #f9fafb;
+    /* Identique au hover des tableaux */
+}
+
+/* Le titre cliquable, sans boîte autour */
+.email-item .email-list-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.email-item .email-list-info a {
+    color: #333;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: normal;
+    /* Texte normal comme demandé */
+}
+
+.email-item .email-list-info a:hover {
+    color: #1fc8c8;
+    text-decoration: underline;
+}
+
+.email-item .email-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.email-item .email-actions button {
+    padding: 2px 6px;
+    font-size: 11px;
+    border-radius: 4px;
+    /* Un léger arrondi plus esthétique pour de si petits boutons */
+}

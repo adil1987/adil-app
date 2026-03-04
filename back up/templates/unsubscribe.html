@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="max-width: 500px; margin: 80px auto; text-align: center; font-family: -apple-system, sans-serif;">
+    <div style="background: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
+        {% if success %}
+        <div style="font-size: 48px; margin-bottom: 20px;">✅</div>
+        <h1 style="font-size: 22px; color: #1f2937; margin-bottom: 10px;">Unsubscribed</h1>
+        <p style="color: #6b7280; font-size: 15px;">
+            <strong>{{ email }}</strong> has been successfully unsubscribed.
+        </p>
+        <p style="color: #9ca3af; font-size: 13px; margin-top: 20px;">
+            You will no longer receive emails from us.
+        </p>
+        {% elif already %}
+        <div style="font-size: 48px; margin-bottom: 20px;">ℹ️</div>
+        <h1 style="font-size: 22px; color: #1f2937; margin-bottom: 10px;">Already Unsubscribed</h1>
+        <p style="color: #6b7280; font-size: 15px;">
+            <strong>{{ email }}</strong> is already unsubscribed.
+        </p>
+        {% else %}
+        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+        <h1 style="font-size: 22px; color: #1f2937; margin-bottom: 10px;">Invalid Link</h1>
+        <p style="color: #6b7280; font-size: 15px;">
+            This unsubscribe link is invalid or has expired.
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

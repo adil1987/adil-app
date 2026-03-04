@@ -1,0 +1,7 @@
+contact@action.move-leads.com
+SMTP Host : action.move-leads.com
+Port      : 587
+Security  : STARTTLS
+Username  : smtpuser
+Password  : TestSMTP123!
+IP :85.120.81.25

@@ -1,0 +1,13 @@
+ce que je propose :
+* on ajoute un champ tout en haut  " campagne name "
+* dans le menu "send " , on laisse le bouton "validate" et le bouton "star campagne " on le transforme en "save campagne" pour sauvgarder les campagnes dans une liste avec tout ses données(email ,smtp,contact , Delay between emails (sec) etc ....) 
+-régles : 
+  >meme si en suprime l'email de la liste d'email dans l'editeur , la campagne rest , 
+  > si en suprime un contact  ou tous les contact : la campagne reste
+*on sauvgarde les campagnes , dans une list "saved campage " dans le menu "send" , pour voire les campagnes, la date d'ajoute , les actions "edit " et "suprimer"
+* dans le dashboard :
+-on suprime les boutons pause et stop et la barre de progresse auto-hide 
+-on remplace par une liste de campagnes 
+-chaque campagne sauvgarder doit apparaitre dans le dash board dans la liste avec son nome 
+- chaque campagne dans la liste a 3 bouton "start , pause , stop " et une parre de progresse et un affichage "email envoyé / total " ,temps estimé ,tous ça dans la meme ligne 
+que penses tu ?

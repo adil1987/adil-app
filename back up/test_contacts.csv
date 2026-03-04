@@ -1,0 +1,4 @@
+email,prenom,nom
+valid@example.com,John,Doe
+invalid-email,Jane,Doe
+ghost@mailinator.com,Ghost,Buster

@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="dashboard-layout">
+
+    <!-- LEFT STATS -->
+    <div class="stats-grid">
+
+        <div class="stat-card blue">
+            <div class="stat-value" data-key="daily_sent">0</div>
+            <div class="stat-label">DAILY SENT</div>
+        </div>
+
+        <div class="stat-card red">
+            <div class="stat-value" data-key="daily_bounced">0</div>
+            <div class="stat-label">DAILY BOUNCED</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-value" data-key="daily_errors">0</div>
+            <div class="stat-label">DAILY ERRORS</div>
+        </div>
+
+        <div class="stat-card blue">
+            <div class="stat-value" data-key="monthly_sent">0</div>
+            <div class="stat-label">MONTHLY SENT</div>
+        </div>
+
+        <div class="stat-card red">
+            <div class="stat-value" data-key="monthly_bounced">0</div>
+            <div class="stat-label">MONTHLY BOUNCED</div>
+        </div>
+
+        <div class="stat-card purple">
+            <div class="stat-value" data-key="open_rate">0%</div>
+            <div class="stat-label">OPEN RATE (EST.)</div>
+        </div>
+
+    </div>
+
+    <!-- RIGHT PANELS -->
+    <div class="dashboard-panels">
+
+        <div class="panel">
+            <h3>Daily Sending Activity (Real Time)</h3>
+            <div class="chart-container">
+                <canvas id="dailyBarChart"></canvas>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Monthly Sending Overview (Up to Today)</h3>
+            <div class="chart-container">
+                <canvas id="monthlyBarChart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ==================================================
+     SOURCE UNIQUE DE DONNÉES (BRUTES)
+     ================================================== -->
+<script>
+    const rawData = {
+        daily: {
+            sent: [
+                0, 0, 0, 0, 0, 2,
+                5, 8, 10, 12, 15, 18,
+                20, 15, 14, 12, 10, 8,
+                6, 4, 3, 2, 0, 0
+            ],
+            bounced: [
+                0, 0, 0, 0, 0, 0,
+                0, 1, 1, 1, 1, 2,
+                1, 0, 1, 1, 0, 1,
+                1, 0, 0, 0, 0, 0
+            ],
+            errors: 2
+        },
+        monthly: {
+            sent: [
+                80, 90, 100, 110, 95, 105, 120, 130, 125, 140,
+                150, 120, 135, 145, 160, 155, 148, 142, 138, 130,
+                125, 120, 118, 115, 110, 108, 105, 100, 95, 90, 85
+            ],
+            bounced: [
+                4, 5, 6, 4, 5, 6, 6, 7, 6, 8,
+                9, 6, 7, 8, 9, 8, 7, 6, 6, 5,
+                5, 4, 4, 4, 3, 3, 3, 2, 2, 2, 1
+            ]
+        },
+        open_rate: 18
+    };
+</script>
+
+<!-- ==================================================
+     NORMALISATION TEMPORELLE (PAS DE FUTUR)
+     ================================================== -->
+<script>
+    const now = new Date();
+    const currentHour = now.getHours();      // ex: 16
+    const currentDay = now.getDate();        // ex: 5
+
+    // Clone sécurisé
+    const dashboardData = JSON.parse(JSON.stringify(rawData));
+
+    // Heures futures = 0
+    dashboardData.daily.sent =
+        dashboardData.daily.sent.map((v, i) => i <= currentHour ? v : 0);
+
+    dashboardData.daily.bounced =
+        dashboardData.daily.bounced.map((v, i) => i <= currentHour ? v : 0);
+
+    // Calcul réel du jour
+    const dailySentTotal =
+        dashboardData.daily.sent.reduce((a, b) => a + b, 0);
+
+    // Jours futurs = 0
+    dashboardData.monthly.sent =
+        dashboardData.monthly.sent.map((v, i) => i < currentDay ? v : 0);
+
+    // Le jour courant = DAILY SENT
+    dashboardData.monthly.sent[currentDay - 1] = dailySentTotal;
+</script>
+
+<!-- ==================================================
+     MISE À JOUR DES CARTES (VÉRITÉ)
+     ================================================== -->
+<script>
+    function updateStatCards(data) {
+        const totals = {
+            daily_sent: data.daily.sent.reduce((a, b) => a + b, 0),
+            daily_bounced: data.daily.bounced.reduce((a, b) => a + b, 0),
+            daily_errors: data.daily.errors,
+            monthly_sent: data.monthly.sent.reduce((a, b) => a + b, 0),
+            monthly_bounced: data.monthly.bounced.reduce((a, b) => a + b, 0),
+            open_rate: data.open_rate + '%'
+        };
+
+        document.querySelectorAll('.stat-value').forEach(el => {
+            const key = el.dataset.key;
+            if (totals[key] !== undefined) {
+                el.textContent = totals[key];
+            }
+        });
+    }
+
+    updateStatCards(dashboardData);
+</script>
+
+<!-- ==================================================
+     CHART JOUR
+     ================================================== -->
+<script>
+    new Chart(document.getElementById('dailyBarChart'), {
+        type: 'bar',
+        data: {
+            labels: Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0') + 'h'),
+            datasets: [
+                {
+                    label: 'Sent',
+                    data: dashboardData.daily.sent,
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.7
+                },
+                {
+                    label: 'Bounced',
+                    data: dashboardData.daily.bounced,
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.7
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true },
+                x: { ticks: { autoSkip: true } }
+            }
+        }
+    });
+</script>
+
+<!-- ==================================================
+     CHART MOIS
+     ================================================== -->
+<script>
+    new Chart(document.getElementById('monthlyBarChart'), {
+        type: 'bar',
+        data: {
+            labels: Array.from({ length: 31 }, (_, i) => (i + 1).toString()),
+            datasets: [
+                {
+                    label: 'Sent',
+                    data: dashboardData.monthly.sent,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8
+                },
+                {
+                    label: 'Bounced',
+                    data: dashboardData.monthly.bounced.map((v, i) =>
+                        i < currentDay ? v : 0
+                    ),
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true },
+                x: { ticks: { autoSkip: true, maxTicksLimit: 15 } }
+            }
+        }
+    });
+</script>
+
+{% endblock %}

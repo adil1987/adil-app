@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+{% set path = request.path %}
+
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ADIL APP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<body>
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+        <div class="logo">ADIL<span>APP</span></div>
+        <div class="user">Admin</div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <a href="/" class="{% if path == '/' %}active{% endif %}">Dashboard</a>
+        <a href="/emails" class="{% if path == '/emails' %}active{% endif %}">Emails</a>
+        <a href="/production" class="{% if path == '/production' %}active{% endif %}">Production</a>
+        <a href="/offers" class="{% if path == '/offers' %}active{% endif %}">Offres</a>
+        <a href="/contacts" class="{% if path == '/contacts' %}active{% endif %}">Contacts</a>
+        <a href="/smtp" class="{% if path == '/smtp' %}active{% endif %}">SMTP</a>
+        <a href="/settings" class="{% if path == '/settings' %}active{% endif %}">Settings</a>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+        {% block content %}{% endblock %}
+    </div>
+
+</body>
+
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+{% set path = request.path %}
+
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>AB Send App</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=1.2">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<body>
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+        <div class="logo"
+            style="font-family:'Outfit',sans-serif; font-weight:800; font-size:20px; letter-spacing:-0.5px;">AB<span
+                style="background:linear-gradient(135deg,#6366f1,#8b5cf6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-left:4px;">Send</span><span
+                style="font-weight:400; opacity:0.6; margin-left:4px; font-size:16px;">App</span></div>
+        <div class="user">Admin</div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <a href="/" class="{% if path == '/' %}active{% endif %}">Dashboard</a>
+        <a href="/send" class="{% if path == '/send' or path == '/production' %}active{% endif %}">Campaigns</a>
+        <a href="/emails" class="{% if path == '/emails' %}active{% endif %}">Emails</a>
+        <a href="/contacts" class="{% if path == '/contacts' %}active{% endif %}">Contacts</a>
+        <a href="/tags" class="{% if path == '/tags' %}active{% endif %}">Tags</a>
+        <a href="/offers" class="{% if path == '/offers' %}active{% endif %}">Offres</a>
+        <a href="/smtp" class="{% if path == '/smtp' %}active{% endif %}">SMTP</a>
+        <a href="/bounce" class="{% if path == '/bounce' %}active{% endif %}">Bounce</a>
+        <a href="/settings" class="{% if path == '/settings' %}active{% endif %}">Settings</a>
+        <a href="/historique" class="{% if path == '/historique' %}active{% endif %}">Historique</a>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+        {% block content %}{% endblock %}
+    </div>
+
+</body>
+
+</html>

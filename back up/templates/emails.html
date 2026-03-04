@@ -1,0 +1,581 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="emails-layout">
+
+    <!-- ================= TOP ROW: EDITOR + LIST ================= -->
+    <div class="emails-top-row">
+
+        <!-- LEFT: EMAIL EDITOR -->
+        <div class="panel email-form">
+            <div class="editor-header">
+                <h2>📝 Email Editor</h2>
+                <div class="editor-controls">
+                    <button type="button" class="btn-new" onclick="newEmail()" title="New Email">➕ New</button>
+                    <button type="button" class="btn-dark-mode" onclick="toggleDarkMode()" title="Dark Mode">🌙</button>
+                    <span id="autoSaveStatus" class="auto-save-status">Auto-saved</span>
+                </div>
+            </div>
+
+            <form method="post" id="emailForm" onsubmit="return validateBeforeSave()">
+                <input type="hidden" name="email_id" value="{{ form_data.id or '' }}">
+
+                <!-- OFFER + NAME -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Offer (optional)</label>
+                        <select name="offer_id" id="offerSelect">
+                            <option value="">-- No offer --</option>
+                            {% for offer in offers %}
+                            <option value="{{ offer.id }}" {% if form_data.offer_id==offer.id %}selected{% endif %}>{{
+                                offer.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Email name *</label>
+                        <input type="text" name="name" id="emailName" required value="{{ form_data.name }}"
+                            placeholder="Ex: Promo Février">
+                    </div>
+                </div>
+
+                <!-- SUBJECT -->
+                <label>Subject * <span id="subjectCounter" class="char-counter">0/60</span></label>
+                <input type="text" name="subject" id="subjectInput" required value="{{ form_data.subject }}"
+                    placeholder="Ex: Free AI PDF Guides" oninput="updateSubjectCounter()">
+
+                <!-- SENDER INFO -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>From name</label>
+                        <input type="text" name="from_name" value="{{ form_data.from_name }}"
+                            placeholder="Ex: Adil from PubPro">
+                    </div>
+                </div>
+
+                <!-- ADVANCED OPTIONS -->
+                <details class="advanced-section">
+                    <summary>⚙️ Advanced Options</summary>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Format</label>
+                            <select name="format" id="formatSelect">
+                                <option value="multipart/alternative" {% if form_data.format=='multipart/alternative' or
+                                    not form_data.format %}selected{% endif %}>multipart/alternative</option>
+                                <option value="text/html" {% if form_data.format=='text/html' %}selected{% endif %}>
+                                    text/html</option>
+                                <option value="text/plain" {% if form_data.format=='text/plain' %}selected{% endif %}>
+                                    text/plain</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Charset</label>
+                            <select name="charset" id="charsetSelect">
+                                <option value="UTF-8" {% if form_data.charset=='UTF-8' or not form_data.charset
+                                    %}selected{% endif %}>UTF-8</option>
+                                <option value="ISO-8859-1" {% if form_data.charset=='ISO-8859-1' %}selected{% endif %}>
+                                    ISO-8859-1</option>
+                                <option value="Windows-1252" {% if form_data.charset=='Windows-1252' %}selected{% endif
+                                    %}>Windows-1252</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Transfer Encoding</label>
+                            <select name="transfer_encoding" id="transferEncodingSelect">
+                                <option value="quoted-printable" {% if form_data.transfer_encoding=='quoted-printable'
+                                    or not form_data.transfer_encoding %}selected{% endif %}>quoted-printable</option>
+                                <option value="base64" {% if form_data.transfer_encoding=='base64' %}selected{% endif
+                                    %}>base64</option>
+                                <option value="7bit" {% if form_data.transfer_encoding=='7bit' %}selected{% endif %}>
+                                    7bit</option>
+                            </select>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- MODE TABS -->
+                <div class="editor-tabs">
+                    <button type="button"
+                        class="tab-btn {% if form_data.mode == 'text' or not form_data.mode %}active{% endif %}"
+                        data-mode="text">Text</button>
+                    <button type="button" class="tab-btn {% if form_data.mode == 'html' %}active{% endif %}"
+                        data-mode="html">HTML</button>
+                </div>
+                <input type="hidden" name="mode" id="editor_mode" value="{{ form_data.mode or 'text' }}">
+
+                <!-- TOOLBAR -->
+                <div class="editor-toolbar">
+                    <div class="toolbar-group">
+                        <span class="toolbar-label">Variables:</span>
+                        <button type="button" class="var-btn" onclick="insertVar('{% raw %}{{prenom}}{% endraw %}')">{%
+                            raw %}{{prenom}}{% endraw %}</button>
+                        <button type="button" class="var-btn" onclick="insertVar('{% raw %}{{nom}}{% endraw %}')">{% raw
+                            %}{{nom}}{% endraw %}</button>
+                        <button type="button" class="var-btn" onclick="insertVar('{% raw %}{{email}}{% endraw %}')">{%
+                            raw %}{{email}}{% endraw %}</button>
+                        <button type="button" class="var-btn"
+                            onclick="insertVar('{% raw %}{{tracking_link}}{% endraw %}')">{% raw %}{{tracking_link}}{%
+                            endraw %}</button>
+                    </div>
+                    <div class="toolbar-group">
+                        <span class="toolbar-label">Emoji:</span>
+                        <button type="button" class="emoji-btn" onclick="insertEmoji('😊')">😊</button>
+                        <button type="button" class="emoji-btn" onclick="insertEmoji('🎉')">🎉</button>
+                        <button type="button" class="emoji-btn" onclick="insertEmoji('🔥')">🔥</button>
+                        <button type="button" class="emoji-btn" onclick="insertEmoji('💡')">💡</button>
+                        <button type="button" class="emoji-btn" onclick="insertEmoji('⭐')">⭐</button>
+                        <button type="button" class="emoji-btn" onclick="insertEmoji('✅')">✅</button>
+                    </div>
+                    <div class="toolbar-group">
+                        <span class="toolbar-label">Spintax:</span>
+                        <button type="button" class="var-btn" onclick="insertSpintax()">{ A | B }</button>
+                    </div>
+                    <div class="toolbar-group">
+                        <span class="toolbar-label">Templates:</span>
+                        <select id="templateSelect" onchange="insertTemplate()">
+                            <option value="">-- Choisir --</option>
+                            <option value="button">Bouton CTA</option>
+                            <option value="header">Header + Logo</option>
+                            <option value="promo">Promo complète</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-group">
+                        <span class="toolbar-label">Footer:</span>
+                        <select id="footerSelect" onchange="insertFooter()">
+                            <option value="">-- Choisir --</option>
+                            <option value="simple">Simple</option>
+                            <option value="unsubscribe">Avec unsub</option>
+                            <option value="legal">Légal complet</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- EMAIL BODY -->
+                <div class="body-header">
+                    <label>Email body</label>
+                    <span id="wordCounter" class="word-counter">0 mots</span>
+                </div>
+                <textarea id="email_editor" name="body" rows="12" class="code-editor"
+                    placeholder="Hello {% raw %}{{prenom}}{% endraw %},&#10;&#10;Your message here..."
+                    oninput="updateWordCounter(); triggerAutoSave(); updateLivePreview();">{{ form_data.body }}</textarea>
+                <div id="htmlValidation" class="validation-box" style="display:none;"></div>
+
+                <!-- FOOTER FIELD -->
+                <div class="footer-section">
+                    <label>Footer (pied de page)</label>
+                    <textarea name="footer" id="footerEditor" rows="3" class="code-editor"
+                        placeholder="Ex: Cordialement, Adil | Unsubscribe: {{unsubscribe_link}}"
+                        oninput="triggerAutoSave(); updateLivePreview();">{{ form_data.footer }}</textarea>
+                </div>
+
+                <!-- TEXT FALLBACK (sous footer) -->
+                <div class="text-fallback-section">
+                    <div class="fallback-header">
+                        <label>Text fallback (plain text)</label>
+                        <button type="button" class="var-btn" onclick="generateTextFallback()">🔄 Auto-générer</button>
+                    </div>
+                    <textarea name="text_fallback" id="textFallback" rows="3"
+                        placeholder="Plain text version (recommended)">{{ form_data.text_fallback }}</textarea>
+                    <div id="textFallbackWarning" class="warning-box" style="display:none;">
+                        ⚠️ Le champ text fallback est vide. Recommandé pour la délivrabilité.
+                    </div>
+                </div>
+
+                <!-- ACTIONS -->
+                <div class="form-actions">
+                    <button type="button" onclick="openPasteHtml()">📋 Paste HTML</button>
+                    <button type="button" onclick="validateHtml()">✓ Validate</button>
+                    <button type="submit" name="action" value="save">💾 Save</button>
+                    <button type="submit" name="action" value="save_and_test" class="btn-primary">📧 Save &
+                        Test</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- RIGHT: EMAIL LIST -->
+        <div class="panel email-list">
+            <h3>📬 Saved Emails ({{ emails|length }})</h3>
+            <ul>
+                {% for e in emails %}
+                <li class="email-item">
+                    <div class="email-list-info">
+                        <a href="/emails?load={{ e.id }}">
+                            {{ e.name }}
+                        </a>
+                        {% if e.offer_id %}
+                        <span class="badge green" title="Offer ID">🎯 #{{ e.offer_id }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="email-actions">
+                        <button type="button" class="btn-preview"
+                            onclick="openEmailPreview(`{{ e.body | e }}`, '{{ e.mode }}')">👁</button>
+                        <form method="post" style="display:inline;">
+                            <input type="hidden" name="action" value="duplicate">
+                            <input type="hidden" name="email_id" value="{{ e.id }}">
+                            <button type="submit" class="btn-edit" title="Duplicate">📋</button>
+                        </form>
+                        <form method="post" onsubmit="return confirm('Delete?');" style="display:inline;">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="email_id" value="{{ e.id }}">
+                            <button type="submit" class="btn-delete">✕</button>
+                        </form>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% if not emails %}
+            <p class="empty-state">No emails saved yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ================= BOTTOM ROW: LIVE PREVIEW ================= -->
+    <div class="panel preview-panel-bottom">
+        <h3>📱 Live Preview</h3>
+        <div id="livePreviewFrame" class="live-preview-frame">
+            <p class="preview-placeholder">Start typing to see preview...</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODALS -->
+<div id="emailPreviewModal" class="modal">
+    <div class="modal-content modal-large">
+        <h3>Email Preview</h3>
+        <div id="emailPreviewContent" class="modal-preview-content"></div>
+        <div class="modal-actions">
+            <button type="button" onclick="closeEmailPreview()">Close</button>
+        </div>
+    </div>
+</div>
+
+<div id="pasteHtmlModal" class="modal">
+    <div class="modal-content">
+        <h3>Paste HTML</h3>
+        <textarea id="pasteHtmlTextarea" rows="12" placeholder="Paste your HTML body here"></textarea>
+        <div class="modal-actions">
+            <button type="button" onclick="applyPasteHtml()">Apply</button>
+            <button type="button" onclick="closePasteHtml()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div id="unsavedModal" class="modal">
+    <div class="modal-content modal-small">
+        <h3>⚠️ Unsaved Changes</h3>
+        <p>You have unsaved changes. Discard them?</p>
+        <div class="modal-actions">
+            <button type="button" onclick="discardAndNew()">🗑️ Discard</button>
+            <button type="button" onclick="closeUnsavedModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div id="warningModal" class="modal">
+    <div class="modal-content modal-small">
+        <h3>⚠️ Avertissements</h3>
+        <div id="warningContent" class="warning-list"></div>
+        <div class="modal-actions">
+            <button type="button" class="btn-primary" onclick="confirmWarnings()">Sauvegarder quand même</button>
+            <button type="button" onclick="closeWarningModal()">Annuler</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let hasUnsavedChanges = false;
+
+    // VALIDATION
+    let pendingSubmit = false;
+
+    function validateBeforeSave() {
+        if (pendingSubmit) {
+            pendingSubmit = false;
+            return true;
+        }
+
+        const offerId = document.getElementById('offerSelect').value;
+        const body = document.getElementById('email_editor').value;
+        const textFallback = document.getElementById('textFallback').value;
+        const footer = document.getElementById('footerEditor').value;
+
+        // Collect all warnings
+        let warnings = [];
+        if (!footer.trim()) warnings.push('⚠️ Footer est vide');
+        if (!textFallback.trim()) {
+            warnings.push('⚠️ Text fallback est vide');
+            document.getElementById('textFallbackWarning').style.display = 'block';
+        }
+        if (offerId && !body.includes('{{tracking_link}}')) {
+            warnings.push('⚠️ Offre sélectionnée sans {{tracking_link}}');
+        }
+
+        if (warnings.length > 0) {
+            showWarningModal(warnings);
+            return false;
+        }
+
+        return true;
+    }
+
+    function showWarningModal(warnings) {
+        const content = document.getElementById('warningContent');
+        content.innerHTML = warnings.map(w => `<p>${w}</p>`).join('');
+        document.getElementById('warningModal').style.display = 'flex';
+    }
+
+    function closeWarningModal() {
+        document.getElementById('warningModal').style.display = 'none';
+    }
+
+    function confirmWarnings() {
+        closeWarningModal();
+        pendingSubmit = true;
+        document.getElementById('emailForm').submit();
+    }
+
+    // GENERATE TEXT FALLBACK
+    function generateTextFallback() {
+        const body = document.getElementById('email_editor').value;
+        const mode = document.getElementById('editor_mode').value;
+        let plainText = body;
+        if (mode === 'html') {
+            const temp = document.createElement('div');
+            temp.innerHTML = body;
+            plainText = temp.textContent || temp.innerText || '';
+            plainText = plainText.replace(/\s+/g, ' ').trim();
+        }
+        document.getElementById('textFallback').value = plainText;
+        document.getElementById('textFallbackWarning').style.display = 'none';
+        triggerAutoSave();
+    }
+
+    // FOOTER TEMPLATES
+    function insertFooter() {
+        const select = document.getElementById('footerSelect');
+        const templates = {
+            simple: 'Cordialement,\n{{prenom}} {{nom}}',
+            unsubscribe: 'Cordialement,\n{{prenom}} {{nom}}\n\n---\nPour vous désabonner: {{unsubscribe_link}}',
+            legal: '<div style="margin-top:30px;padding-top:20px;border-top:1px solid #eee;font-size:12px;color:#888;">Cordialement,<br>{{prenom}} {{nom}}<br><br>Vous recevez cet email car vous êtes inscrit.<br><a href="{{unsubscribe_link}}">Se désabonner</a></div>'
+        };
+        if (select.value && templates[select.value]) {
+            document.getElementById('footerEditor').value = templates[select.value];
+            triggerAutoSave();
+            updateLivePreview();
+        }
+        select.value = '';
+    }
+
+    // NEW EMAIL
+    function newEmail() {
+        if (hasUnsavedChanges) {
+            document.getElementById('unsavedModal').style.display = 'flex';
+        } else {
+            window.location.href = '/emails';
+        }
+    }
+
+    function discardAndNew() {
+        closeUnsavedModal();
+        window.location.href = '/emails';
+    }
+    function closeUnsavedModal() { document.getElementById('unsavedModal').style.display = 'none'; }
+
+    function clearEditor() {
+        document.querySelector('input[name="email_id"]').value = '';
+        document.getElementById('emailName').value = '';
+        document.getElementById('subjectInput').value = '';
+        document.querySelector('input[name="from_name"]').value = '';
+        document.querySelector('input[name="from_email"]').value = '';
+        document.querySelector('input[name="reply_to"]').value = '';
+        document.getElementById('email_editor').value = '';
+        document.getElementById('footerEditor').value = '';
+        document.getElementById('textFallback').value = '';
+        document.getElementById('offerSelect').value = '';
+        document.getElementById('textFallbackWarning').style.display = 'none';
+        hasUnsavedChanges = false;
+        updateAutoSaveStatus('New email');
+        updateLivePreview();
+        updateWordCounter();
+        updateSubjectCounter();
+    }
+
+    // AUTO-SAVE
+    let autoSaveTimer = null;
+    function triggerAutoSave() {
+        hasUnsavedChanges = true;
+        updateAutoSaveStatus('Unsaved...');
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(() => {
+            localStorage.setItem('emailDraft', JSON.stringify({
+                name: document.getElementById('emailName').value,
+                subject: document.getElementById('subjectInput').value,
+                body: document.getElementById('email_editor').value,
+                footer: document.getElementById('footerEditor').value
+            }));
+            updateAutoSaveStatus('Draft saved');
+        }, 3000);
+    }
+
+    function updateAutoSaveStatus(text) {
+        const status = document.getElementById('autoSaveStatus');
+        status.textContent = text;
+        status.className = text.includes('Unsaved') ? 'auto-save-status unsaved' : 'auto-save-status';
+    }
+
+    // COUNTERS
+    function updateSubjectCounter() {
+        const len = document.getElementById('subjectInput').value.length;
+        const counter = document.getElementById('subjectCounter');
+        counter.textContent = `${len}/60`;
+        counter.style.color = len > 60 ? '#dc2626' : len > 50 ? '#ea580c' : '#6b7280';
+    }
+
+    function updateWordCounter() {
+        const text = document.getElementById('email_editor').value;
+        const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+        document.getElementById('wordCounter').textContent = `${words} mots`;
+    }
+
+    // LIVE PREVIEW
+    function updateLivePreview() {
+        const body = document.getElementById('email_editor').value;
+        const footer = document.getElementById('footerEditor').value;
+        const mode = document.getElementById('editor_mode').value;
+        const frame = document.getElementById('livePreviewFrame');
+
+        if (!body.trim() && !footer.trim()) {
+            frame.innerHTML = '<p class="preview-placeholder">Start typing to see preview...</p>';
+            return;
+        }
+
+        let content = body;
+        if (footer.trim()) content += '\n\n' + footer;
+
+        if (mode === 'html') {
+            frame.innerHTML = content;
+        } else {
+            frame.innerHTML = content
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>');
+        }
+    }
+
+    // INSERT FUNCTIONS
+    function insertVar(varText) {
+        const editor = document.getElementById('email_editor');
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        editor.value = editor.value.substring(0, start) + varText + editor.value.substring(end);
+        editor.focus();
+        editor.setSelectionRange(start + varText.length, start + varText.length);
+        triggerAutoSave();
+        updateLivePreview();
+    }
+
+    function insertEmoji(emoji) { insertVar(emoji); }
+
+    function insertSpintax() {
+        const editor = document.getElementById('email_editor');
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const selected = editor.value.substring(start, end);
+        const spintax = selected ? `{${selected}|alternative}` : '{option1|option2}';
+        editor.value = editor.value.substring(0, start) + spintax + editor.value.substring(end);
+        editor.focus();
+        triggerAutoSave();
+        updateLivePreview();
+    }
+
+    function insertTemplate() {
+        const select = document.getElementById('templateSelect');
+        const templates = {
+            button: '<a href="{{tracking_link}}" style="display:inline-block;padding:12px 24px;background:#22c55e;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Click Here</a>',
+            header: '<div style="text-align:center;padding:20px;background:#f8fafc;"><img src="YOUR_LOGO_URL" alt="Logo" style="max-height:60px;"></div>',
+            promo: '<div style="font-family:Arial;max-width:600px;margin:0 auto;"><h1>Special Offer!</h1><p>Hello {{prenom}},</p><a href="{{tracking_link}}" style="display:inline-block;padding:12px 24px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:6px;">Learn More</a></div>'
+        };
+        if (select.value && templates[select.value]) insertVar(templates[select.value]);
+        select.value = '';
+    }
+
+    // TABS
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('editor_mode').value = btn.dataset.mode;
+            updateLivePreview();
+        });
+    });
+
+    // DARK MODE
+    function toggleDarkMode() {
+        document.querySelector('.email-form').classList.toggle('dark-mode');
+    }
+
+    // VALIDATE CONTENT
+    function validateHtml() {
+        const body = document.getElementById('email_editor').value;
+        const box = document.getElementById('htmlValidation');
+        let issues = [];
+
+        if (body.includes('<script')) issues.push('⚠️ Script tags');
+        if (body.includes('javascript:')) issues.push('⚠️ JS links');
+
+        // Only require `</` if there's actual HTML elements `<...>`
+        const hasHtmlOpening = /<[a-z]+[^>]*>/i.test(body);
+        if (hasHtmlOpening && !body.includes('</')) {
+            issues.push('⚠️ Unclosed HTML tags');
+        }
+
+        // Count { and } to check for unclosed Spintax or variables
+        const openBraces = (body.match(/\{/g) || []).length;
+        const closeBraces = (body.match(/\}/g) || []).length;
+        if (openBraces > closeBraces) {
+            issues.push('⚠️ Unclosed Spintax/Var: missing }');
+        } else if (openBraces < closeBraces) {
+            issues.push('⚠️ Extra Spintax/Var: missing {');
+        }
+
+        box.innerHTML = issues.length ? issues.join('<br>') : '<span class="valid">✅ Content OK</span>';
+        box.style.display = 'block';
+    }
+
+    // MODALS
+    function openEmailPreview(body, mode) {
+        const content = document.getElementById('emailPreviewContent');
+        content.innerHTML = mode === 'html' ? decodeHTMLEntities(body) : body.replace(/\n/g, '<br>');
+        document.getElementById('emailPreviewModal').style.display = 'flex';
+    }
+    function closeEmailPreview() { document.getElementById('emailPreviewModal').style.display = 'none'; }
+    function decodeHTMLEntities(text) {
+        const ta = document.createElement('textarea');
+        ta.innerHTML = text;
+        return ta.value;
+    }
+    function openPasteHtml() { document.getElementById('pasteHtmlModal').style.display = 'flex'; }
+    function closePasteHtml() { document.getElementById('pasteHtmlModal').style.display = 'none'; }
+    function applyPasteHtml() {
+        document.getElementById('email_editor').value = document.getElementById('pasteHtmlTextarea').value;
+        document.getElementById('editor_mode').value = 'html';
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('.tab-btn[data-mode="html"]').classList.add('active');
+        closePasteHtml();
+        updateLivePreview();
+        triggerAutoSave();
+    }
+
+    // INIT
+    updateSubjectCounter();
+    updateWordCounter();
+    updateLivePreview();
+    if (!document.getElementById('textFallback').value.trim() && document.getElementById('email_editor').value.trim()) {
+        document.getElementById('textFallbackWarning').style.display = 'block';
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Offres</h1>
+
+<div class="offers-layout">
+
+    <!-- LEFT: OFFERS LIST -->
+    <div class="panel offers-list">
+        <h3>📋 Liste des Offres ({{ offers|length }})</h3>
+
+        {% if offers %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nom</th>
+                    <th>Sponsor</th>
+                    <th>URL</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in offers %}
+                <tr>
+                    <td>{{ o.id }}</td>
+                    <td><strong>{{ o.name }}</strong></td>
+                    <td>{{ o.sponsor or '-' }}</td>
+                    <td class="url-cell" title="{{ o.url }}">{{ o.url[:40] }}{% if o.url|length > 40 %}...{% endif %}</td>
+                    <td><span class="badge gray">{{ o.type or 'CPA' }}</span></td>
+                    <td class="actions">
+                        <a href="/offers?edit={{ o.id }}" class="btn-edit" title="Éditer">✏️</a>
+                        <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer cette offre ?');">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="offer_id" value="{{ o.id }}">
+                            <button type="submit" class="btn-delete" title="Supprimer">🗑️</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">Aucune offre enregistrée.</p>
+        {% endif %}
+    </div>
+
+    <!-- RIGHT: ADD / EDIT FORM -->
+    <div class="panel offers-form">
+        <h3>{% if edit_offer %}✏️ Modifier l'offre #{{ edit_offer.id }}{% else %}➕ Ajouter une Offre{% endif %}</h3>
+
+        <form method="post">
+            <input type="hidden" name="action" value="save">
+            {% if edit_offer %}
+            <input type="hidden" name="offer_id" value="{{ edit_offer.id }}">
+            {% endif %}
+
+            <label>Nom de l'offre *</label>
+            <input type="text" name="name" required value="{{ edit_offer.name if edit_offer else '' }}"
+                placeholder="Ex: Weight Loss Guide">
+
+            <label>Sponsor</label>
+            <input type="text" name="sponsor" value="{{ edit_offer.sponsor if edit_offer else '' }}"
+                placeholder="Ex: MaxBounty, ClickBank...">
+
+            <label>URL *</label>
+            <input type="url" name="url" required value="{{ edit_offer.url if edit_offer else '' }}"
+                placeholder="https://track.example.com/offer123">
+
+            <label>Type</label>
+            <select name="type">
+                <option value="CPA" {% if not edit_offer or edit_offer.type == 'CPA' %}selected{% endif %}>CPA</option>
+                <option value="CPC" {% if edit_offer and edit_offer.type == 'CPC' %}selected{% endif %}>CPC</option>
+                <option value="CPL" {% if edit_offer and edit_offer.type == 'CPL' %}selected{% endif %}>CPL</option>
+                <option value="CPS" {% if edit_offer and edit_offer.type == 'CPS' %}selected{% endif %}>CPS</option>
+                <option value="RevShare" {% if edit_offer and edit_offer.type == 'RevShare' %}selected{% endif %}>RevShare</option>
+                <option value="Flat" {% if edit_offer and edit_offer.type == 'Flat' %}selected{% endif %}>Flat Rate</option>
+            </select>
+
+            <label>Notes</label>
+            <textarea name="notes" rows="3" placeholder="Notes internes...">{{ edit_offer.notes if edit_offer else '' }}</textarea>
+
+            <div class="form-actions-row">
+                <button type="submit">💾 Save</button>
+                {% if edit_offer %}
+                <a href="/offers" class="btn-cancel">❌ Cancel</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+</div>
+
+{% endblock %}

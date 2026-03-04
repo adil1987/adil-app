@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="bounce-page">
+    <div class="page-header">
+        <h1>📬 Bounce Management</h1>
+    </div>
+
+    <!-- BOUNCE MAILBOXES -->
+    <div class="panel">
+        <h2>📮 Bounce Mailboxes</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>SMTP</th>
+                    <th>Bounce Email</th>
+                    <th>Status</th>
+                    <th>Bounces</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for smtp in smtp_servers %}
+                <tr>
+                    <td><strong>{{ smtp.name }}</strong></td>
+                    <td>
+                        {% if smtp.bounce_email %}
+                        <span class="badge badge-info">{{ smtp.bounce_email }}</span>
+                        {% else %}
+                        <span class="badge badge-muted">Not configured</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if smtp.bounce_email and smtp.bounce_password %}
+                        <span class="badge badge-success">Ready</span>
+                        {% else %}
+                        <span class="badge badge-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set stats = bounce_stats.get(smtp.id, {}) %}
+                        <span title="Total">{{ stats.get('total', 0) }}</span>
+                        {% if stats.get('hard', 0) > 0 %}
+                        <span class="badge badge-danger" title="Hard bounces">{{ stats.get('hard', 0) }} hard</span>
+                        {% endif %}
+                        {% if stats.get('soft', 0) > 0 %}
+                        <span class="badge badge-warning" title="Soft bounces">{{ stats.get('soft', 0) }} soft</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if smtp.bounce_email and smtp.bounce_password %}
+                        <button class="btn-sm btn-primary" onclick="checkBounce({{ smtp.id }})"
+                            id="checkBtn{{ smtp.id }}">
+                            🔌 Check Now
+                        </button>
+                        {% else %}
+                        <a href="/smtp" class="btn-sm btn-secondary">Configure</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- RECENT BOUNCES -->
+    <div class="panel">
+        <h2>📊 Recent Bounces</h2>
+        {% if bounce_logs %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Email</th>
+                    <th>Type</th>
+                    <th>Code</th>
+                    <th>Reason</th>
+                    <th>SMTP</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in bounce_logs %}
+                <tr>
+                    <td style="white-space:nowrap; font-size:12px;">{{ log.processed_at[:16] }}</td>
+                    <td><strong>{{ log.bounced_email }}</strong></td>
+                    <td>
+                        {% if log.bounce_type == 'hard' %}
+                        <span class="badge badge-danger">Hard</span>
+                        {% elif log.bounce_type == 'soft' %}
+                        <span class="badge badge-warning">Soft</span>
+                        {% else %}
+                        <span class="badge badge-muted">{{ log.bounce_type }}</span>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ log.bounce_code or '—' }}</code></td>
+                    <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis;"
+                        title="{{ log.bounce_reason }}">
+                        {{ log.bounce_reason[:80] if log.bounce_reason else '—' }}
+                    </td>
+                    <td>{{ log.smtp_name or '—' }}</td>
+                    <td>
+                        <span
+                            class="badge {% if log.action_taken == 'blacklisted' %}badge-danger{% elif log.action_taken == 'unparsable' %}badge-warning{% else %}badge-muted{% endif %}">
+                            {{ log.action_taken }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No bounces recorded yet. Bounce emails will appear here after the worker processes them.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- BLACKLIST -->
+    <div class="panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2>🚫 Blacklisted Emails ({{ blacklist_count }})</h2>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <input type="text" id="blacklistSearch" placeholder="Search emails..." style="width:250px;"
+                    oninput="searchBlacklist()">
+                <a href="/api/bounce/export" class="btn-sm btn-secondary" download>📥 Export CSV</a>
+            </div>
+        </div>
+
+        <div id="blacklistContainer">
+            {% if blacklisted %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Reason</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="blacklistBody">
+                    {% for bl in blacklisted %}
+                    <tr id="bl-{{ loop.index }}">
+                        <td><strong>{{ bl.email }}</strong></td>
+                        <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis;">{{ bl.reason or '—' }}
+                        </td>
+                        <td style="white-space:nowrap; font-size:12px;">{{ bl.created_at[:16] if bl.created_at else '—'
+                            }}</td>
+                        <td>
+                            <button class="btn-sm btn-danger"
+                                onclick="removeBlacklist('{{ bl.email }}', 'bl-{{ loop.index }}')">
+                                🗑️ Remove
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <p>No blacklisted emails.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .bounce-page {
+        max-width: 1200px;
+    }
+
+    .bounce-page .page-header {
+        margin-bottom: 20px;
+    }
+
+    .bounce-page .page-header h1 {
+        font-size: 24px;
+        font-weight: 700;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .badge-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-info {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .badge-muted {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
+    .btn-sm {
+        padding: 4px 12px;
+        font-size: 12px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .btn-sm.btn-primary {
+        background: #4f46e5;
+        color: white;
+    }
+
+    .btn-sm.btn-primary:hover {
+        background: #4338ca;
+    }
+
+    .btn-sm.btn-secondary {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .btn-sm.btn-secondary:hover {
+        background: #d1d5db;
+    }
+
+    .btn-sm.btn-danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .btn-sm.btn-danger:hover {
+        background: #fecaca;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 30px;
+        color: #9ca3af;
+    }
+
+    .check-result {
+        margin-top: 8px;
+        font-size: 12px;
+        padding: 6px 10px;
+        border-radius: 6px;
+    }
+
+    .check-result.success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .check-result.error {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+</style>
+
+<script>
+    function checkBounce(smtpId) {
+        const btn = document.getElementById('checkBtn' + smtpId);
+        const origText = btn.textContent;
+        btn.textContent = '⏳ Checking...';
+        btn.disabled = true;
+
+        fetch('/api/bounce/check/' + smtpId)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    btn.textContent = `✅ ${data.processed} processed`;
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    btn.textContent = '❌ Error';
+                    alert('Error: ' + data.error);
+                    setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 3000);
+                }
+            })
+            .catch(err => {
+                btn.textContent = '❌ Failed';
+                alert('Connection error: ' + err);
+                setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 3000);
+            });
+    }
+
+    function removeBlacklist(email, rowId) {
+        if (!confirm(`Remove ${email} from blacklist?`)) return;
+
+        fetch('/api/bounce/blacklist/' + encodeURIComponent(email), { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById(rowId).remove();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+    }
+
+    function searchBlacklist() {
+        const q = document.getElementById('blacklistSearch').value;
+        fetch('/api/bounce/blacklist?search=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                const body = document.getElementById('blacklistBody');
+                if (!body) return;
+                body.innerHTML = '';
+                data.forEach((bl, i) => {
+                    body.innerHTML += `
+                        <tr id="bl-s${i}">
+                            <td><strong>${bl.email}</strong></td>
+                            <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis;">${bl.reason || '—'}</td>
+                            <td style="white-space:nowrap; font-size:12px;">${(bl.created_at || '').substring(0, 16)}</td>
+                            <td>
+                                <button class="btn-sm btn-danger" onclick="removeBlacklist('${bl.email}', 'bl-s${i}')">
+                                    🗑️ Remove
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+    }
+</script>
+
+{% endblock %}

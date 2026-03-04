@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Settings</h1>
+
+<div class="settings-layout">
+
+    <!-- ================= GENERAL SETTINGS ================= -->
+    <div class="panel">
+        <h2>General Settings</h2>
+
+        <form method="post">
+            <label>Application Name</label>
+            <input type="text" name="app_name" value="{{ settings.app_name }}">
+
+            <label>Default Sender Name</label>
+            <input type="text" name="sender_name" value="{{ settings.sender_name }}" placeholder="Ex: Adil from PubPro">
+
+            <label>Default Sender Email</label>
+            <input type="email" name="sender_email" value="{{ settings.sender_email }}"
+                placeholder="contact@domain.com">
+
+            <label>Default Reply-To</label>
+            <input type="email" name="reply_to" value="{{ settings.reply_to }}" placeholder="reply@domain.com">
+
+            <label>Global Rate Limit (emails/hour)</label>
+            <input type="number" name="global_rate" value="{{ settings.global_rate }}">
+
+            <div class="form-actions">
+                <button type="submit" name="action" value="save">Save Settings</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ================= TEST EMAILS ================= -->
+    <div class="panel">
+        <h2>📧 Test Emails (Inbox/Spam Check)</h2>
+        <p class="hint">Add your test emails to check if messages land in inbox or spam.</p>
+
+        <!-- Add test email -->
+        <form method="post" class="inline-form">
+            <input type="email" name="test_email" required placeholder="test@gmail.com" style="flex:2;">
+            <select name="provider" style="flex:1;">
+                <option value="">Provider</option>
+                <option value="gmail">Gmail</option>
+                <option value="yahoo">Yahoo</option>
+                <option value="outlook">Outlook</option>
+                <option value="other">Other</option>
+            </select>
+            <button type="submit" name="action" value="add_test_email">Add</button>
+        </form>
+
+        <!-- List test emails -->
+        {% if test_emails %}
+        <table class="data-table" style="margin-top:15px;">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Provider</th>
+                    <th>Last Result</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in test_emails %}
+                <tr>
+                    <td>{{ t.email }}</td>
+                    <td>{{ t.provider or '-' }}</td>
+                    <td>
+                        {% if t.last_result == 'inbox' %}
+                        <span class="badge green">Inbox ✓</span>
+                        {% elif t.last_result == 'spam' %}
+                        <span class="badge red">Spam ✗</span>
+                        {% elif t.last_result == 'bounce' %}
+                        <span class="badge orange">Bounce</span>
+                        {% else %}
+                        <span class="badge gray">Not tested</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="post" style="display:inline;">
+                            <input type="hidden" name="action" value="delete_test_email">
+                            <input type="hidden" name="test_id" value="{{ t.id }}">
+                            <button type="submit" class="btn-delete">✕</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">No test emails configured.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}

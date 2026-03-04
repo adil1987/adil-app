@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Campagnes</h1>
+
+<!-- ===================== -->
+<!-- ZONE HAUTE -->
+<!-- ===================== -->
+<div class="campaigns-top">
+
+    <!-- ===== COLONNE GAUCHE : FORMULAIRE ===== -->
+    <div class="campaign-form">
+        <form method="post">
+
+            <label>Nom de la campagne</label>
+            <input type="text" name="name" required>
+
+            <label>Nom expéditeur</label>
+            <input type="text" name="sender_name">
+
+            <label>Email expéditeur</label>
+            <input type="email" name="sender_email">
+
+            <label>Sujet</label>
+            <input type="text" name="subject">
+
+            <!-- ===== EDITEUR EMAIL ===== -->
+            <label>Contenu de l’email</label>
+
+            <!-- Onglets -->
+            <div class="editor-tabs">
+                <button type="button" class="tab-btn active" onclick="setEditorMode('text')">Texte</button>
+                <button type="button" class="tab-btn" onclick="setEditorMode('html')">HTML</button>
+            </div>
+
+            <input type="hidden" name="editor_mode" id="editor_mode" value="text">
+
+            <!-- Toolbar -->
+            <div class="editor-toolbar">
+                <button type="button" onclick="insertText('{{prenom}}')">+ Prénom</button>
+                <button type="button" onclick="insertText('{{email}}')">+ Email</button>
+                <button type="button" onclick="insertLink()">+ Lien</button>
+            </div>
+
+            <!-- Zone édition -->
+            <textarea id="email_editor" name="content" rows="10"
+                placeholder="Bonjour {{prenom}},&#10;&#10;Voici notre offre..."></textarea>
+
+            <p class="editor-help">
+                Variables disponibles : {{prenom}}, {{email}}
+            </p>
+
+            <label>Vitesse d’envoi (emails / heure)</label>
+            <input type="number" name="rate" value="50">
+
+            <div style="margin-top:10px;">
+                <button type="submit" name="action" value="save">
+                    Sauvegarder campagne
+                </button>
+                <button type="submit" name="action" value="preview">
+                    Aperçu
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- ===== COLONNE DROITE : LISTE ===== -->
+    <div class="campaign-list">
+        <h2>Campagnes sauvegardées</h2>
+
+        {% if campaigns %}
+        <ul>
+            {% for c in campaigns %}
+            <li>
+                <strong>{{ c.name }}</strong><br>
+                <small>{{ c.subject }}</small>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>Aucune campagne enregistrée.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- ===================== -->
+<!-- ZONE BASSE : APERÇU -->
+<!-- ===================== -->
+{% if preview %}
+<div class="campaign-preview">
+    <h2>Aperçu de l’email</h2>
+
+    <div class="preview-box">
+        <strong>Sujet :</strong> {{ preview.subject }}<br><br>
+
+        {% if preview.editor_mode == "html" %}
+        <div>{{ preview.content | safe }}</div>
+        {% else %}
+        <pre>{{ preview.content }}</pre>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ===================== -->
+<!-- JS EDITEUR -->
+<!-- ===================== -->
+<script>
+    function setEditorMode(mode) {
+        document.getElementById('editor_mode').value = mode;
+
+        document.querySelectorAll('.tab-btn').forEach(btn =>
+            btn.classList.remove('active')
+        );
+
+        if (mode === 'text') {
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            document.getElementById('email_editor').placeholder =
+                "Bonjour {{prenom}},\n\nVoici notre offre...";
+        } else {
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            document.getElementById('email_editor').placeholder =
+                "<table><tr><td>Bonjour {{prenom}}</td></tr></table>";
+        }
+    }
+
+    function insertText(text) {
+        const editor = document.getElementById('email_editor');
+        editor.value += text;
+        editor.focus();
+    }
+
+    function insertLink() {
+        const url = prompt("URL du lien :");
+        if (!url) return;
+        insertText('<a href="' + url + '">Lien</a>');
+    }
+</script>
+
+{% endblock %}

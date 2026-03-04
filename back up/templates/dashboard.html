@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="dashboard-layout">
+
+    <!-- LEFT COLUMN: Stats + Activity Log -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+
+        <!-- Stats cards -->
+        <div class="stats-grid">
+
+            <div class="stat-card blue">
+                <div class="stat-value" data-key="daily_sent">0</div>
+                <div class="stat-label">DAILY SENT</div>
+            </div>
+
+            <div class="stat-card red">
+                <div class="stat-value" data-key="daily_bounced">0</div>
+                <div class="stat-label">DAILY BOUNCED</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value" data-key="daily_errors">0</div>
+                <div class="stat-label">DAILY ERRORS</div>
+            </div>
+
+            <div class="stat-card blue">
+                <div class="stat-value" data-key="monthly_sent">0</div>
+                <div class="stat-label">MONTHLY SENT</div>
+            </div>
+
+            <div class="stat-card red">
+                <div class="stat-value" data-key="monthly_bounced">0</div>
+                <div class="stat-label">MONTHLY BOUNCED</div>
+            </div>
+
+            <div class="stat-card purple">
+                <div class="stat-value" data-key="open_rate">0%</div>
+                <div class="stat-label">OPEN RATE</div>
+            </div>
+
+            <div class="stat-card blue">
+                <div class="stat-value" id="statTotalCampaigns">0</div>
+                <div class="stat-label">TOTAL CAMPAIGNS</div>
+            </div>
+
+            <div class="stat-card" style="color: #22c55e;">
+                <div class="stat-value" id="statActiveCampaigns">0</div>
+                <div class="stat-label">ACTIVE CAMPAIGNS</div>
+            </div>
+
+        </div>
+
+        <!-- Activity Log (below stats, left column) -->
+        <div class="panel" style="margin: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin:0;">📝 Activity Log</h3>
+                <button class="btn-small btn-danger" style="font-size:11px; padding:3px 8px;" onclick="clearLogs()">🗑️
+                    Clear Logs</button>
+            </div>
+            <div id="activityLog"
+                style="max-height: 300px; overflow-y: auto; font-size: 13px; font-family: monospace; background: var(--bg-dark, #f8f9fa); border-radius: 6px; padding: 10px;">
+                <p style="color: #9ca3af; text-align:center;">Loading...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- RIGHT PANELS -->
+    <div class="dashboard-panels">
+
+        <!-- Campaigns Panel -->
+        <div class="panel">
+            <div class="panel-header"
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>🚀 Campaigns</h3>
+                <a href="/send" class="btn-primary btn-small">➕ New Campaign</a>
+            </div>
+            <div style="max-height: 310px; overflow-y: auto; overflow-x: auto;">
+                <table class="data-table" id="dashCampaignTable" style="margin-top: 0; position: relative;">
+                    <thead
+                        style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <tr>
+                            <th style="width: 25%;">Name</th>
+                            <th style="width: 10%;">Created</th>
+                            <th style="width: 10%;">SMTP</th>
+                            <th style="width: 15%;">Send</th>
+                            <th style="width: 5%;">Bounce</th>
+                            <th style="width: 5%;">Opens</th>
+                            <th style="width: 15%;">Action</th>
+                            <th style="width: 5%;">Status</th>
+                            <th style="width: 5%;">Code</th>
+                            <th style="width: 5%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashCampaignListBody">
+                        <tr>
+                            <td colspan="10" style="text-align: center;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Daily Sending Activity (Real Time)</h3>
+            <div class="chart-container">
+                <canvas id="dailyBarChart"></canvas>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Monthly Sending Overview (Up to Today)</h3>
+            <div class="chart-container">
+                <canvas id="monthlyBarChart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ==================================================
+     REDUCED CHART HEIGHT
+     ================================================== -->
+<style>
+    .chart-container {
+        height: 180px !important;
+    }
+</style>
+
+<!-- ==================================================
+     REAL DATA: FETCH FROM API + CHARTS + CARDS
+     ================================================== -->
+<script>
+    let dailyChart = null;
+    let monthlyChart = null;
+
+    function loadDashboardStats() {
+        fetch('/api/dashboard/stats')
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+
+                // Update stat cards
+                const dailySent = data.daily.sent.reduce((a, b) => a + b, 0);
+                const dailyBounced = data.daily.bounced.reduce((a, b) => a + b, 0);
+                const monthlySent = data.monthly.sent.reduce((a, b) => a + b, 0);
+                const monthlyBounced = data.monthly.bounced.reduce((a, b) => a + b, 0);
+
+                const totals = {
+                    daily_sent: dailySent,
+                    daily_bounced: dailyBounced,
+                    daily_errors: data.daily.errors,
+                    monthly_sent: monthlySent,
+                    monthly_bounced: monthlyBounced,
+                    open_rate: data.open_rate + '%'
+                };
+
+                document.querySelectorAll('.stat-value').forEach(el => {
+                    const key = el.dataset.key;
+                    if (totals[key] !== undefined) {
+                        el.textContent = totals[key];
+                    }
+                });
+
+                // Daily chart (hourly)
+                const hourLabels = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0') + 'h');
+                if (dailyChart) {
+                    dailyChart.data.datasets[0].data = data.daily.sent;
+                    dailyChart.data.datasets[1].data = data.daily.bounced;
+                    dailyChart.update();
+                } else {
+                    dailyChart = new Chart(document.getElementById('dailyBarChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: hourLabels,
+                            datasets: [
+                                { label: 'Sent', data: data.daily.sent, barPercentage: 0.6, categoryPercentage: 0.7 },
+                                { label: 'Bounced', data: data.daily.bounced, barPercentage: 0.6, categoryPercentage: 0.7 }
+                            ]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            scales: { y: { beginAtZero: true }, x: { ticks: { autoSkip: true } } }
+                        }
+                    });
+                }
+
+                // Monthly chart (per day)
+                const dayLabels = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+                if (monthlyChart) {
+                    monthlyChart.data.datasets[0].data = data.monthly.sent;
+                    monthlyChart.data.datasets[1].data = data.monthly.bounced;
+                    monthlyChart.update();
+                } else {
+                    monthlyChart = new Chart(document.getElementById('monthlyBarChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: dayLabels,
+                            datasets: [
+                                { label: 'Sent', data: data.monthly.sent, barPercentage: 0.7, categoryPercentage: 0.8 },
+                                { label: 'Bounced', data: data.monthly.bounced, barPercentage: 0.7, categoryPercentage: 0.8 }
+                            ]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            scales: { y: { beginAtZero: true }, x: { ticks: { autoSkip: true, maxTicksLimit: 15 } } }
+                        }
+                    });
+                }
+            })
+            .catch(() => { });
+    }
+
+    // Load immediately and then every 30s
+    loadDashboardStats();
+    setInterval(loadDashboardStats, 30000);
+</script>
+
+<!-- ==================================================
+     CAMPAIGNS LIST POLLING & CONTROL
+     ================================================== -->
+<script>
+    let dashPolling = null;
+
+    function pollCampaigns() {
+        fetch('/api/campaigns/list')
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('dashCampaignListBody');
+
+                if (!data || !data.campaigns || data.campaigns.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No campaigns yet.</td></tr>';
+                    document.getElementById('statTotalCampaigns').textContent = '0';
+                    document.getElementById('statActiveCampaigns').textContent = '0';
+                    return;
+                }
+
+                const campaigns = data.campaigns;
+                // Update stat cards
+                document.getElementById('statTotalCampaigns').textContent = campaigns.length;
+                document.getElementById('statActiveCampaigns').textContent =
+                    campaigns.filter(c => ['sending', 'paused', 'pending'].includes(c.status)).length;
+
+                const btnStyle = 'font-size:11px; padding:3px 8px; margin:0 2px;';
+
+                tbody.innerHTML = campaigns.map(c => {
+                    const total = c.total_recipients || 0;
+                    const sent = c.sent_count || 0;
+                    const bounce = c.bounce_count || 0;
+                    const open = c.open_count || 0;
+                    const pct = total > 0 ? Math.round((sent / total) * 100) : 0;
+
+                    // SMTP names
+                    const smtpLabel = (c.smtp_names && c.smtp_names.length) ? c.smtp_names.join(', ') : '--';
+
+                    // Progress bar cell
+                    const sendCell = `
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="flex:1; height:8px; background:#e5e7eb; border-radius:4px; overflow:hidden;">
+                                <div style="height:100%; width:${pct}%; background:#22c55e; transition:width 0.5s;"></div>
+                            </div>
+                            <span style="font-size:12px; white-space:nowrap;">${sent}/${total}</span>
+                        </div>`;
+
+                    // Action buttons — pending allows resume
+                    const isPaused = c.status === 'paused';
+                    const isPending = c.status === 'pending';
+                    const canStart = ['draft', 'stopped', 'completed', 'paused', 'pending'].includes(c.status);
+                    const canPause = c.status === 'sending';
+                    const canStop = !['stopped', 'completed'].includes(c.status);
+                    const canDelete = ['stopped', 'completed'].includes(c.status);
+
+                    let startLabel = isPaused || isPending ? '▶ Resume' : '▶ Start';
+                    let btns = `<button class="btn-small btn-primary" style="${btnStyle} min-width:70px;" onclick="ctrlStart(${c.id})" ${canStart ? '' : 'disabled'}>${startLabel}</button>`;
+                    btns += `<button class="btn-small btn-warning" style="${btnStyle}" onclick="ctrlPause(${c.id})" ${canPause ? '' : 'disabled'}>⏸ Pause</button>`;
+                    btns += `<button class="btn-small btn-danger" style="${btnStyle}" onclick="ctrlStop(${c.id})" ${canStop ? '' : 'disabled'}>🛑 Stop</button>`;
+
+                    // Status badge
+                    const statusMap = {
+                        draft: 'Draft', sending: 'Sending', paused: 'Paused',
+                        stopped: 'Stopped', completed: 'Completed', pending: 'Pending'
+                    };
+                    const statusLabel = statusMap[c.status] || c.status;
+
+                    // Pause code label
+                    const codeLabels = {
+                        daily_limit: '📅 Daily limit',
+                        hourly_limit: '🕐 Hourly limit',
+                        smtp_error: '⚡ SMTP error',
+                        smtp_paused: '⏸ SMTP paused',
+                        bounce_rate: '🔴 Bounce rate',
+                        auth_error: '🔐 Auth error',
+                        connection_error: '🔌 Connection',
+                        no_smtp: '❌ No SMTP'
+                    };
+                    const codeLabel = c.pause_code ? (codeLabels[c.pause_code] || c.pause_code) : '';
+                    const codeColor = ['bounce_rate', 'auth_error', 'no_smtp'].includes(c.pause_code) ? '#ef4444' : '#f59e0b';
+
+                    return `
+                        <tr>
+                            <td><strong>${c.name}</strong></td>
+                            <td>${c.created_at ? c.created_at.substring(0, 10) : '--'}</td>
+                            <td style="font-size:12px;">${smtpLabel}</td>
+                            <td style="min-width:150px;">${sendCell}</td>
+                            <td style="text-align:center;">${bounce}</td>
+                            <td style="text-align:center; color:#8b5cf6; font-weight:600;">${open}</td>
+                            <td style="white-space:nowrap;">${btns}</td>
+                            <td><span class="status-badge status-${c.status}">${statusLabel}</span></td>
+                            <td style="font-size:11px; color:${codeColor}; white-space:nowrap;">${codeLabel}</td>
+                            <td><button class="btn-small btn-danger" style="${btnStyle}" onclick="dashDelete(${c.id})" ${canDelete ? '' : 'disabled'} title="Delete">🗑️</button></td>
+                        </tr>`;
+                }).join('');
+            })
+            .catch(() => { });
+    }
+
+    function ctrlStart(id) {
+        if (!confirm('Start this campaign?')) return;
+        fetch(`/api/send/start/${id}`, { method: 'POST' }).then(() => pollCampaigns());
+    }
+
+    function ctrlPause(id) {
+        fetch(`/api/send/pause/${id}`, { method: 'POST' }).then(() => pollCampaigns());
+    }
+
+    function ctrlResume(id) {
+        if (!confirm('Resume this campaign?')) return;
+        fetch(`/api/send/start/${id}`, { method: 'POST' }).then(() => pollCampaigns());
+    }
+
+    function ctrlStop(id) {
+        if (!confirm('⚠️ Stop this campaign?')) return;
+        fetch(`/api/send/stop/${id}`, { method: 'POST' }).then(() => pollCampaigns());
+    }
+
+    function dashDelete(id) {
+        if (!confirm('Supprimer cette campagne définitivement ?')) return;
+        fetch(`/api/campaign/delete/${id}?source=dashboard`, { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => { if (data.success) pollCampaigns(); });
+    }
+
+    // Activity Log
+    function pollActivityLog() {
+        fetch('/api/campaign/logs')
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById('activityLog');
+                if (!data.logs || data.logs.length === 0) {
+                    el.innerHTML = '<p style="color:#9ca3af; text-align:center;">No activity yet.</p>';
+                    return;
+                }
+                el.innerHTML = data.logs.map(l => {
+                    const ts = l.created_at ? l.created_at.substring(0, 16).replace('T', ' ') : '--';
+                    const actionColors = { start: '#22c55e', pause: '#f59e0b', stop: '#ef4444', save: '#6366f1', delete: '#ef4444', completed: '#3b82f6', pending: '#fbbf24', resume: '#3b82f6' };
+                    const color = actionColors[l.action] || '#9ca3af';
+                    return `<div style="padding:3px 0; border-bottom:1px solid rgba(0,0,0,0.05);">
+                        <span style="color:#6b7280;">${ts}</span>
+                        <span style="color:${color}; font-weight:600; text-transform:uppercase;">${l.action}</span>
+                        <strong>${l.campaign_name || ''}</strong>
+                        <span style="color:#6b7280;">${l.detail || ''}</span>
+                    </div>`;
+                }).join('');
+            })
+            .catch(() => { });
+    }
+
+    function clearLogs() {
+        if (!confirm('Supprimer tous les logs ?')) return;
+        fetch('/api/campaign/logs/clear', { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => { if (data.success) pollActivityLog(); });
+    }
+
+    // Start polling
+    pollCampaigns();
+    pollActivityLog();
+    dashPolling = setInterval(pollCampaigns, 3000);
+    setInterval(pollActivityLog, 5000);
+</script>
+
+{% endblock %}
