@@ -1611,6 +1611,11 @@ def api_campaigns_list():
     from flask import jsonify
     import json as _json
     campaigns = get_all_campaigns()
+    
+    # Dashboard passes ?exclude_archived=1 to hide archived campaigns
+    if request.args.get('exclude_archived') == '1':
+        campaigns = [c for c in campaigns if c.get('status') != 'archived']
+    
     # Resolve SMTP names for each campaign
     for c in campaigns:
         smtp_names = []

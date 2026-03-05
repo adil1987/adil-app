@@ -1605,7 +1605,7 @@ def get_all_campaigns(status=None, limit=50):
     if status:
         cursor.execute("SELECT * FROM campaigns WHERE status = ? ORDER BY created_at DESC LIMIT ?", (status, limit))
     else:
-        cursor.execute("SELECT * FROM campaigns WHERE status != 'archived' ORDER BY created_at DESC LIMIT ?", (limit,))
+        cursor.execute("SELECT * FROM campaigns ORDER BY created_at DESC LIMIT ?", (limit,))
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]

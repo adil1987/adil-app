@@ -227,7 +227,7 @@
     let dashPolling = null;
 
     function pollCampaigns() {
-        fetch('/api/campaigns/list')
+        fetch('/api/campaigns/list?exclude_archived=1')
             .then(r => r.json())
             .then(data => {
                 const tbody = document.getElementById('dashCampaignListBody');
