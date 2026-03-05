@@ -714,6 +714,7 @@ def go_filter_page(job_id):
 @app.route("/go/<int:job_id>/confirm")
 def go_confirm(job_id):
     """Called by JavaScript after the timer. Returns the real CPA URL."""
+    from flask import jsonify
     from database import get_db
     from datetime import datetime
     
@@ -753,6 +754,7 @@ def go_test_page(offer_id):
 @login_required
 def go_test_confirm(offer_id):
     """Return the CPA URL for test preview (requires login)."""
+    from flask import jsonify
     from database import get_offer_by_id
     offer = get_offer_by_id(offer_id)
     if not offer or not offer.get('url'):
