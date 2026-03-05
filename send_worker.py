@@ -553,7 +553,7 @@ class SendWorker:
                 body = body + footer_html
             
             # Inject tracking pixel (Localhost base strictly for dev/test as requested by user)
-            tracking_pixel = f'<img src="http://localhost:5000/track/open/{job_id}.gif" width="1" height="1" style="display:none;" alt="" />'
+            tracking_pixel = f'<img src="https://abc-connect.com/track/open/{job_id}.gif" width="1" height="1" style="display:none;" alt="" />'
             body = body + tracking_pixel
             
             # Use SMTP's from_email as sender (not email template's)
