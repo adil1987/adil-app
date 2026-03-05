@@ -103,11 +103,23 @@ app.secret_key = "adil_app_secret_key_2024"
 # Initialiser la base de données au démarrage
 init_db()
 
-# Start bounce worker
-bounce_worker.start()
-
-# Start the send worker in background
-start_send_worker()
+@app.cli.command("run-worker")
+def run_worker():
+    """Start the background workers (Send & Bounce)."""
+    print("Starting background workers...")
+    bounce_worker.start()
+    start_send_worker()
+    
+    # Keep the process alive
+    import time
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Stopping background workers...")
+        bounce_worker.stop()
+        from send_worker import stop_send_worker
+        stop_send_worker()
 
 # =========================
 # LOGIN DEFINITIONS
