@@ -6,14 +6,17 @@
 <div class="content-header" style="display: flex; justify-content: space-between; align-items: center;">
     <div class="header-left">
         <h2>📜 Historique des Campagnes</h2>
-        <p>Consultez les campagnes qui ont été supprimées.</p>
+        <p>Consultez les campagnes qui ont été supprimées et leurs statistiques.</p>
     </div>
-    {% if history %}
-    <button type="button" class="btn-small btn-danger" onclick="clearHistory()" style="white-space: nowrap;">🗑️ Vider
-        l'historique</button>
-    {% endif %}
+    <div style="display: flex; gap: 10px;">
+        {% if history %}
+        <button type="button" class="btn-small btn-danger" onclick="clearHistory()" style="white-space: nowrap;">🗑️
+            Vider l'historique</button>
+        {% endif %}
+    </div>
 </div>
 
+<!-- Campaign History -->
 <div class="panel" style="margin-top: 20px;">
     <div class="panel-header">
         <h3>Campagnes Supprimées</h3>
@@ -25,10 +28,12 @@
                 <th>Name</th>
                 <th>Created At</th>
                 <th>Deleted At</th>
-                <th>Status (Lors de la suppression)</th>
-                <th>SMTPs Utilisés</th>
-                <th>Total Recipients</th>
+                <th>Status</th>
+                <th>SMTPs</th>
+                <th>Recipients</th>
                 <th>Envoyés</th>
+                <th>Opens</th>
+                <th>Clicks</th>
             </tr>
         </thead>
         <tbody>
@@ -45,17 +50,31 @@
                 </td>
                 <td>{{ c.total_recipients|default(0) }}</td>
                 <td>{{ c.sent_count|default(0) }}</td>
+                <td style="color: #8b5cf6; font-weight: 600;">{{ c.open_count|default(0) }}</td>
+                <td style="color: #06b6d4; font-weight: 600;">{{ c.click_count|default(0) }}</td>
             </tr>
             {% endfor %}
             {% else %}
             <tr>
-                <td colspan="7" style="text-align: center; color: #6b7280; padding: 2rem;">
+                <td colspan="9" style="text-align: center; color: #6b7280; padding: 2rem;">
                     Aucune campagne dans l'historique pour l'instant.
                 </td>
             </tr>
             {% endif %}
         </tbody>
     </table>
+</div>
+
+<!-- Campaign Stats Section -->
+<div class="panel" style="margin-top: 20px;">
+    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>📊 Statistiques par Campagne</h3>
+        <button type="button" class="btn-small btn-danger" onclick="clearStatsHistory()"
+            style="font-size: 11px; padding: 3px 8px;">🗑️ Supprimer les stats</button>
+    </div>
+    <div id="statsTableContainer">
+        <p style="text-align: center; color: #9ca3af;">Chargement...</p>
+    </div>
 </div>
 
 <script>
@@ -72,6 +91,73 @@
             })
             .catch(err => alert('❌ Erreur réseau: ' + err.message));
     }
+
+    // Load campaign stats for all campaigns (including active ones)
+    function loadCampaignStats() {
+        fetch('/api/campaigns/list')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('statsTableContainer');
+                if (!data.campaigns || data.campaigns.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #9ca3af; padding: 1rem;">Aucune campagne active.</p>';
+                    return;
+                }
+
+                let html = `<table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Campagne</th>
+                            <th>Status</th>
+                            <th>Recipients</th>
+                            <th>Envoyés</th>
+                            <th>Bounces</th>
+                            <th>Opens</th>
+                            <th>Clicks</th>
+                            <th>Open Rate</th>
+                            <th>Click Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+                data.campaigns.forEach(c => {
+                    const sent = c.sent_count || 0;
+                    const opens = c.open_count || 0;
+                    const clicks = c.click_count || 0;
+                    const openRate = sent > 0 ? Math.round((opens / sent) * 100) : 0;
+                    const clickRate = sent > 0 ? Math.round((clicks / sent) * 100) : 0;
+
+                    html += `<tr>
+                        <td><strong>${c.name}</strong></td>
+                        <td><span class="status-badge status-${c.status}">${c.status}</span></td>
+                        <td>${(c.total_recipients || 0).toLocaleString()}</td>
+                        <td>${sent.toLocaleString()}</td>
+                        <td>${(c.bounce_count || 0).toLocaleString()}</td>
+                        <td style="color: #8b5cf6; font-weight: 600;">${opens}</td>
+                        <td style="color: #06b6d4; font-weight: 600;">${clicks}</td>
+                        <td>${openRate}%</td>
+                        <td>${clickRate}%</td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            })
+            .catch(() => {
+                document.getElementById('statsTableContainer').innerHTML = '<p style="text-align: center; color: #ef4444;">Erreur de chargement</p>';
+            });
+    }
+
+    function clearStatsHistory() {
+        if (!confirm('⚠️ Supprimer tout l\'historique et les statistiques ?')) return;
+        fetch('/api/campaign/history/clear', { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) window.location.reload();
+            });
+    }
+
+    // Load on page init
+    loadCampaignStats();
 </script>
 
 {% endblock %}

@@ -201,6 +201,21 @@ def api_dashboard_stats():
             if r['hr'] is not None:
                 hourly_bounced[r['hr']] = r['cnt']
 
+        # Hourly clicks today (from send_jobs)
+        hourly_clicks = [0] * 24
+        try:
+            cursor.execute("""
+                SELECT CAST(strftime('%H', clicked_at) AS INTEGER) as hr, COUNT(*) as cnt
+                FROM send_jobs
+                WHERE clicked = 1 AND clicked_at IS NOT NULL AND DATE(clicked_at) = ?
+                GROUP BY hr
+            """, (today,))
+            for r in cursor.fetchall():
+                if r['hr'] is not None:
+                    hourly_clicks[r['hr']] = r['cnt']
+        except Exception:
+            pass
+
         # Daily errors today
         cursor.execute("""
             SELECT COUNT(*) as cnt FROM send_jobs
@@ -235,6 +250,21 @@ def api_dashboard_stats():
             if r['dy'] is not None and 1 <= r['dy'] <= 31:
                 monthly_bounced[r['dy'] - 1] = r['cnt']
 
+        # Monthly clicks (per day)
+        monthly_clicks = [0] * 31
+        try:
+            cursor.execute("""
+                SELECT CAST(strftime('%d', clicked_at) AS INTEGER) as dy, COUNT(*) as cnt
+                FROM send_jobs
+                WHERE clicked = 1 AND clicked_at IS NOT NULL AND clicked_at >= ?
+                GROUP BY dy
+            """, (month_start,))
+            for r in cursor.fetchall():
+                if r['dy'] is not None and 1 <= r['dy'] <= 31:
+                    monthly_clicks[r['dy'] - 1] = r['cnt']
+        except Exception:
+            pass
+
         # Monthly opens (for true open rate)
         cursor.execute("""
             SELECT SUM(opened) as cnt
@@ -256,11 +286,13 @@ def api_dashboard_stats():
             "daily": {
                 "sent": hourly_sent,
                 "bounced": hourly_bounced,
+                "clicks": hourly_clicks,
                 "errors": daily_errors
             },
             "monthly": {
                 "sent": monthly_sent,
-                "bounced": monthly_bounced
+                "bounced": monthly_bounced,
+                "clicks": monthly_clicks
             },
             "open_rate": open_rate,
             "current_day": current_day
@@ -268,8 +300,8 @@ def api_dashboard_stats():
     except Exception as e:
         return jsonify({
             "success": True,
-            "daily": {"sent": [0]*24, "bounced": [0]*24, "errors": 0},
-            "monthly": {"sent": [0]*31, "bounced": [0]*31},
+            "daily": {"sent": [0]*24, "bounced": [0]*24, "clicks": [0]*24, "errors": 0},
+            "monthly": {"sent": [0]*31, "bounced": [0]*31, "clicks": [0]*31},
             "open_rate": 0,
             "current_day": datetime.now().day,
             "error": str(e)

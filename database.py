@@ -264,7 +264,9 @@ def init_db():
             status TEXT,
             smtp_names TEXT,
             total_recipients INTEGER DEFAULT 0,
-            sent_count INTEGER DEFAULT 0
+            sent_count INTEGER DEFAULT 0,
+            open_count INTEGER DEFAULT 0,
+            click_count INTEGER DEFAULT 0
         )
     """)
     
@@ -313,6 +315,7 @@ def init_db():
             error_count INTEGER DEFAULT 0,
             bounce_count INTEGER DEFAULT 0,
             open_count INTEGER DEFAULT 0,
+            click_count INTEGER DEFAULT 0,
             started_at TEXT,
             completed_at TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -335,6 +338,8 @@ def init_db():
             queued_at TEXT DEFAULT CURRENT_TIMESTAMP,
             sent_at TEXT,
             opened INTEGER DEFAULT 0,
+            clicked INTEGER DEFAULT 0,
+            clicked_at TEXT,
             FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
             FOREIGN KEY (contact_id) REFERENCES contacts(id)
         )
@@ -453,6 +458,20 @@ def init_db():
     # Migrate send_jobs table
     _migrate_send_jobs_columns()
     
+    # Migrate campaign_history table (add open_count, click_count)
+    try:
+        conn2 = get_db()
+        c2 = conn2.cursor()
+        for col, coldef in [("open_count", "INTEGER DEFAULT 0"), ("click_count", "INTEGER DEFAULT 0")]:
+            try:
+                c2.execute(f"ALTER TABLE campaign_history ADD COLUMN {col} {coldef}")
+            except Exception:
+                pass
+        conn2.commit()
+        conn2.close()
+    except Exception:
+        pass
+    
     # Migrate emails table (add new columns if missing)
     _migrate_email_columns()
     
@@ -549,6 +568,7 @@ def _migrate_campaign_columns():
         ("delay_max", "INTEGER DEFAULT 0"),
         ("test_email", "TEXT"),
         ("open_count", "INTEGER DEFAULT 0"),
+        ("click_count", "INTEGER DEFAULT 0"),
         ("pause_code", "TEXT"),
     ]
 
@@ -570,6 +590,16 @@ def _migrate_send_jobs_columns():
     
     try:
         cursor.execute("ALTER TABLE send_jobs ADD COLUMN opened INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE send_jobs ADD COLUMN clicked INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE send_jobs ADD COLUMN clicked_at TEXT")
     except Exception:
         pass
         
@@ -1235,8 +1265,8 @@ def insert_campaign_history(campaign_data):
     
     cursor.execute("""
         INSERT INTO campaign_history 
-        (original_id, name, created_at, status, smtp_names, total_recipients, sent_count)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        (original_id, name, created_at, status, smtp_names, total_recipients, sent_count, open_count, click_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         campaign_data.get('id'),
         campaign_data.get('name', 'Unknown'),
@@ -1244,7 +1274,9 @@ def insert_campaign_history(campaign_data):
         campaign_data.get('status', 'unknown'),
         smtp_names,
         campaign_data.get('total_recipients', 0),
-        campaign_data.get('sent_count', 0)
+        campaign_data.get('sent_count', 0),
+        campaign_data.get('open_count', 0),
+        campaign_data.get('click_count', 0)
     ))
     conn.commit()
     conn.close()

@@ -41,6 +41,16 @@
                 <div class="stat-label">OPEN RATE</div>
             </div>
 
+            <div class="stat-card" style="color: #06b6d4;">
+                <div class="stat-value" data-key="daily_clicks">0</div>
+                <div class="stat-label">DAILY CLICKS</div>
+            </div>
+
+            <div class="stat-card" style="color: #06b6d4;">
+                <div class="stat-value" data-key="monthly_clicks">0</div>
+                <div class="stat-label">MONTHLY CLICKS</div>
+            </div>
+
             <div class="stat-card blue">
                 <div class="stat-value" id="statTotalCampaigns">0</div>
                 <div class="stat-label">TOTAL CAMPAIGNS</div>
@@ -83,12 +93,13 @@
                     <thead
                         style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                         <tr>
-                            <th style="width: 25%;">Name</th>
-                            <th style="width: 10%;">Created</th>
+                            <th style="width: 18%;">Name</th>
+                            <th style="width: 8%;">Created</th>
                             <th style="width: 10%;">SMTP</th>
-                            <th style="width: 15%;">Send</th>
+                            <th style="width: 14%;">Send</th>
                             <th style="width: 5%;">Bounce</th>
                             <th style="width: 5%;">Opens</th>
+                            <th style="width: 5%;">Clicks</th>
                             <th style="width: 15%;">Action</th>
                             <th style="width: 5%;">Status</th>
                             <th style="width: 5%;">Code</th>
@@ -97,24 +108,40 @@
                     </thead>
                     <tbody id="dashCampaignListBody">
                         <tr>
-                            <td colspan="10" style="text-align: center;">Loading...</td>
+                            <td colspan="11" style="text-align: center;">Loading...</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <div class="panel">
-            <h3>Daily Sending Activity (Real Time)</h3>
-            <div class="chart-container">
-                <canvas id="dailyBarChart"></canvas>
+        <div style="display: flex; gap: 20px;">
+            <div class="panel" style="flex: 1;">
+                <h3>Daily Sending Activity (Real Time)</h3>
+                <div class="chart-container">
+                    <canvas id="dailyBarChart"></canvas>
+                </div>
+            </div>
+            <div class="panel" style="flex: 1;">
+                <h3>Daily Clicks (Real Time)</h3>
+                <div class="chart-container">
+                    <canvas id="dailyClickChart"></canvas>
+                </div>
             </div>
         </div>
 
-        <div class="panel">
-            <h3>Monthly Sending Overview (Up to Today)</h3>
-            <div class="chart-container">
-                <canvas id="monthlyBarChart"></canvas>
+        <div style="display: flex; gap: 20px;">
+            <div class="panel" style="flex: 1;">
+                <h3>Monthly Sending Overview</h3>
+                <div class="chart-container">
+                    <canvas id="monthlyBarChart"></canvas>
+                </div>
+            </div>
+            <div class="panel" style="flex: 1;">
+                <h3>Monthly Clicks Overview</h3>
+                <div class="chart-container">
+                    <canvas id="monthlyClickChart"></canvas>
+                </div>
             </div>
         </div>
 
@@ -137,6 +164,8 @@
 <script>
     let dailyChart = null;
     let monthlyChart = null;
+    let dailyClickChart = null;
+    let monthlyClickChart = null;
 
     function loadDashboardStats() {
         fetch('/api/dashboard/stats')
@@ -147,15 +176,19 @@
                 // Update stat cards
                 const dailySent = data.daily.sent.reduce((a, b) => a + b, 0);
                 const dailyBounced = data.daily.bounced.reduce((a, b) => a + b, 0);
+                const dailyClicks = (data.daily.clicks || []).reduce((a, b) => a + b, 0);
                 const monthlySent = data.monthly.sent.reduce((a, b) => a + b, 0);
                 const monthlyBounced = data.monthly.bounced.reduce((a, b) => a + b, 0);
+                const monthlyClicks = (data.monthly.clicks || []).reduce((a, b) => a + b, 0);
 
                 const totals = {
                     daily_sent: dailySent,
                     daily_bounced: dailyBounced,
                     daily_errors: data.daily.errors,
+                    daily_clicks: dailyClicks,
                     monthly_sent: monthlySent,
                     monthly_bounced: monthlyBounced,
+                    monthly_clicks: monthlyClicks,
                     open_rate: data.open_rate + '%'
                 };
 
@@ -166,7 +199,7 @@
                     }
                 });
 
-                // Daily chart (hourly)
+                // Daily sending chart (hourly)
                 const hourLabels = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0') + 'h');
                 if (dailyChart) {
                     dailyChart.data.datasets[0].data = data.daily.sent;
@@ -178,8 +211,8 @@
                         data: {
                             labels: hourLabels,
                             datasets: [
-                                { label: 'Sent', data: data.daily.sent, barPercentage: 0.6, categoryPercentage: 0.7 },
-                                { label: 'Bounced', data: data.daily.bounced, barPercentage: 0.6, categoryPercentage: 0.7 }
+                                { label: 'Sent', data: data.daily.sent, backgroundColor: '#3b82f6', barPercentage: 0.6, categoryPercentage: 0.7 },
+                                { label: 'Bounced', data: data.daily.bounced, backgroundColor: '#ef4444', barPercentage: 0.6, categoryPercentage: 0.7 }
                             ]
                         },
                         options: {
@@ -189,7 +222,28 @@
                     });
                 }
 
-                // Monthly chart (per day)
+                // Daily clicks chart (hourly)
+                const clicksToday = data.daily.clicks || Array(24).fill(0);
+                if (dailyClickChart) {
+                    dailyClickChart.data.datasets[0].data = clicksToday;
+                    dailyClickChart.update();
+                } else {
+                    dailyClickChart = new Chart(document.getElementById('dailyClickChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: hourLabels,
+                            datasets: [
+                                { label: 'Clicks', data: clicksToday, backgroundColor: '#06b6d4', barPercentage: 0.6, categoryPercentage: 0.7 }
+                            ]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            scales: { y: { beginAtZero: true }, x: { ticks: { autoSkip: true } } }
+                        }
+                    });
+                }
+
+                // Monthly sending chart (per day)
                 const dayLabels = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
                 if (monthlyChart) {
                     monthlyChart.data.datasets[0].data = data.monthly.sent;
@@ -201,8 +255,29 @@
                         data: {
                             labels: dayLabels,
                             datasets: [
-                                { label: 'Sent', data: data.monthly.sent, barPercentage: 0.7, categoryPercentage: 0.8 },
-                                { label: 'Bounced', data: data.monthly.bounced, barPercentage: 0.7, categoryPercentage: 0.8 }
+                                { label: 'Sent', data: data.monthly.sent, backgroundColor: '#3b82f6', barPercentage: 0.7, categoryPercentage: 0.8 },
+                                { label: 'Bounced', data: data.monthly.bounced, backgroundColor: '#ef4444', barPercentage: 0.7, categoryPercentage: 0.8 }
+                            ]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            scales: { y: { beginAtZero: true }, x: { ticks: { autoSkip: true, maxTicksLimit: 15 } } }
+                        }
+                    });
+                }
+
+                // Monthly clicks chart (per day)
+                const clicksMonth = data.monthly.clicks || Array(31).fill(0);
+                if (monthlyClickChart) {
+                    monthlyClickChart.data.datasets[0].data = clicksMonth;
+                    monthlyClickChart.update();
+                } else {
+                    monthlyClickChart = new Chart(document.getElementById('monthlyClickChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: dayLabels,
+                            datasets: [
+                                { label: 'Clicks', data: clicksMonth, backgroundColor: '#06b6d4', barPercentage: 0.7, categoryPercentage: 0.8 }
                             ]
                         },
                         options: {
@@ -233,7 +308,7 @@
                 const tbody = document.getElementById('dashCampaignListBody');
 
                 if (!data || !data.campaigns || data.campaigns.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No campaigns yet.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="11" style="text-align: center;">No campaigns yet.</td></tr>';
                     document.getElementById('statTotalCampaigns').textContent = '0';
                     document.getElementById('statActiveCampaigns').textContent = '0';
                     return;
@@ -305,9 +380,10 @@
                             <td><strong>${c.name}</strong></td>
                             <td>${c.created_at ? c.created_at.substring(0, 10) : '--'}</td>
                             <td style="font-size:12px;">${smtpLabel}</td>
-                            <td style="min-width:150px;">${sendCell}</td>
+                            <td style="min-width:130px;">${sendCell}</td>
                             <td style="text-align:center;">${bounce}</td>
                             <td style="text-align:center; color:#8b5cf6; font-weight:600;">${open}</td>
+                            <td style="text-align:center; color:#06b6d4; font-weight:600;">${c.click_count || 0}</td>
                             <td style="white-space:nowrap;">${btns}</td>
                             <td><span class="status-badge status-${c.status}">${statusLabel}</span></td>
                             <td style="font-size:11px; color:${codeColor}; white-space:nowrap;">${codeLabel}</td>
