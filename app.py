@@ -1789,6 +1789,20 @@ def route_historique():
     history = get_campaign_history()
     return render_template("historique.html", history=history)
 
+
+@app.route("/api/campaign/history/clear", methods=["DELETE"])
+@login_required
+def api_campaign_history_clear():
+    """Clear all campaign history records."""
+    from flask import jsonify
+    from database import get_db
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM campaign_history")
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
 @app.route("/api/send/stop/<int:campaign_id>", methods=["POST"])
 @login_required
 def api_send_stop(campaign_id):

@@ -3,11 +3,15 @@
 {% block title %}Historique - ADIL APP{% endblock %}
 
 {% block content %}
-<div class="content-header">
+<div class="content-header" style="display: flex; justify-content: space-between; align-items: center;">
     <div class="header-left">
         <h2>📜 Historique des Campagnes</h2>
         <p>Consultez les campagnes qui ont été supprimées.</p>
     </div>
+    {% if history %}
+    <button type="button" class="btn-small btn-danger" onclick="clearHistory()" style="white-space: nowrap;">🗑️ Vider
+        l'historique</button>
+    {% endif %}
 </div>
 
 <div class="panel" style="margin-top: 20px;">
@@ -53,5 +57,21 @@
         </tbody>
     </table>
 </div>
+
+<script>
+    function clearHistory() {
+        if (!confirm('⚠️ Supprimer tout l\'historique des campagnes ? Cette action est irréversible.')) return;
+        fetch('/api/campaign/history/clear', { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('❌ ' + (data.error || 'Erreur'));
+                }
+            })
+            .catch(err => alert('❌ Erreur réseau: ' + err.message));
+    }
+</script>
 
 {% endblock %}

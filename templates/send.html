@@ -3,9 +3,13 @@
 {% block title %}Campaigns{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>🚀 Campaigns</h1>
-    <p class="page-description">Create, manage and launch your email campaigns</p>
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1>🚀 Campaigns</h1>
+        <p class="page-description">Create, manage and launch your email campaigns</p>
+    </div>
+    <button type="button" class="btn-primary" onclick="newCampaign()" style="white-space: nowrap;">➕ New
+        Campaign</button>
 </div>
 
 <!-- Saved Campaigns List (TOP) -->
@@ -312,6 +316,18 @@
 </div>
 </form>
 
+</div>
+
+<!-- New Campaign Warning Modal -->
+<div id="newCampaignModal" class="modal">
+    <div class="modal-content modal-small">
+        <h3>⚠️ Campagne en cours</h3>
+        <p>Vous avez une campagne en cours d'édition. Voulez-vous l'abandonner et créer une nouvelle campagne ?</p>
+        <div class="modal-actions">
+            <button type="button" class="btn-primary" onclick="confirmNewCampaign()">🗑️ Abandonner et créer</button>
+            <button type="button" onclick="closeNewCampaignModal()">Annuler</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -645,10 +661,14 @@
             .then(data => {
                 if (data.success) {
                     alert('✅ Campaign saved successfully!');
-                    // Reset form to create new
-                    document.getElementById('campaignId').value = '';
-                    document.getElementById('campaignName').value = '';
+                    // Set the campaign ID so further saves update instead of creating new
+                    if (data.campaign_id) {
+                        document.getElementById('campaignId').value = data.campaign_id;
+                    }
+                    // Keep editor filled — don't clear fields
                     loadCampaignList();
+                    // Clear localStorage draft since we just saved
+                    localStorage.removeItem('campaignDraft');
                 } else {
                     alert('❌ ' + data.error);
                 }
@@ -799,6 +819,7 @@
     }
 
     // Init
+    restoreDraftFromStorage();
     estimateRecipients();
     loadCampaignList();
     // Auto-refresh list every 5s
@@ -809,5 +830,156 @@
         document.getElementById('validationErrors').innerHTML = '';
         document.getElementById('validationWarnings').innerHTML = '';
     });
+
+    // ========================================
+    // NEW CAMPAIGN BUTTON
+    // ========================================
+    function newCampaign() {
+        const name = document.getElementById('campaignName').value.trim();
+        const emailId = document.getElementById('emailSelect').value;
+        const hasData = name || emailId;
+
+        if (hasData) {
+            document.getElementById('newCampaignModal').style.display = 'flex';
+        } else {
+            resetCampaignForm();
+        }
+    }
+
+    function confirmNewCampaign() {
+        closeNewCampaignModal();
+        resetCampaignForm();
+    }
+
+    function closeNewCampaignModal() {
+        document.getElementById('newCampaignModal').style.display = 'none';
+    }
+
+    function resetCampaignForm() {
+        document.getElementById('campaignId').value = '';
+        document.getElementById('campaignName').value = '';
+        document.getElementById('emailSelect').value = '';
+        document.getElementById('emailInfo').style.display = 'none';
+        document.getElementById('previewFrame').innerHTML = '<p class="preview-empty">Select an email to preview</p>';
+
+        // Reset audience
+        document.querySelector('input[name="audience_type"][value="all"]').checked = true;
+        updateAudienceUI();
+        document.querySelectorAll('input[name="include_tags_cb"]').forEach(cb => cb.checked = false);
+        document.querySelectorAll('input[name="exclude_tags_cb"]').forEach(cb => cb.checked = false);
+
+        // Reset SMTP
+        document.querySelectorAll('input[name="smtp_ids"]').forEach(cb => cb.checked = false);
+        updateSmtpSelection();
+
+        // Reset params
+        document.querySelector('input[name="timing"][value="now"]').checked = true;
+        updateTimingUI();
+        document.querySelector('input[name="delay_type"][value="fixed"]').checked = true;
+        updateDelayUI();
+        document.getElementById('emailDelay').value = '3';
+        document.getElementById('testInboxInterval').value = '100';
+        document.getElementById('testEmailSelect').value = '';
+
+        // Reset validation
+        document.getElementById('validationErrors').innerHTML = '';
+        document.getElementById('validationWarnings').innerHTML = '';
+        document.getElementById('validationSuccess').style.display = 'none';
+
+        // Clear draft
+        localStorage.removeItem('campaignDraft');
+
+        estimateRecipients();
+        updateSummary();
+    }
+
+    // ========================================
+    // LOCALSTORAGE PERSISTENCE
+    // ========================================
+    function saveDraftToStorage() {
+        const draft = {
+            campaignId: document.getElementById('campaignId').value,
+            campaignName: document.getElementById('campaignName').value,
+            emailId: document.getElementById('emailSelect').value,
+            audienceType: document.querySelector('input[name="audience_type"]:checked')?.value || 'all',
+            includeTags: Array.from(document.querySelectorAll('input[name="include_tags_cb"]:checked')).map(cb => cb.value),
+            excludeTags: Array.from(document.querySelectorAll('input[name="exclude_tags_cb"]:checked')).map(cb => cb.value),
+            smtpIds: Array.from(document.querySelectorAll('input[name="smtp_ids"]:checked')).map(cb => cb.value),
+            timing: document.querySelector('input[name="timing"]:checked')?.value || 'now',
+            scheduledAt: document.getElementById('scheduledAt')?.value || '',
+            delayType: document.querySelector('input[name="delay_type"]:checked')?.value || 'fixed',
+            emailDelay: document.getElementById('emailDelay').value,
+            delayMin: document.getElementById('emailDelayMin')?.value || '3',
+            delayMax: document.getElementById('emailDelayMax')?.value || '8',
+            testInboxInterval: document.getElementById('testInboxInterval').value,
+            testEmail: document.getElementById('testEmailSelect').value
+        };
+        localStorage.setItem('campaignDraft', JSON.stringify(draft));
+    }
+
+    function restoreDraftFromStorage() {
+        const raw = localStorage.getItem('campaignDraft');
+        if (!raw) return;
+        try {
+            const d = JSON.parse(raw);
+            if (d.campaignId) document.getElementById('campaignId').value = d.campaignId;
+            if (d.campaignName) document.getElementById('campaignName').value = d.campaignName;
+            if (d.emailId) {
+                document.getElementById('emailSelect').value = d.emailId;
+                loadEmailPreview();
+            }
+
+            // Audience
+            const audRadios = document.querySelectorAll('input[name="audience_type"]');
+            audRadios.forEach(r => r.checked = (r.value === d.audienceType));
+            updateAudienceUI();
+            if (d.includeTags) {
+                document.querySelectorAll('input[name="include_tags_cb"]').forEach(cb => {
+                    cb.checked = d.includeTags.includes(cb.value);
+                });
+            }
+            if (d.excludeTags) {
+                document.querySelectorAll('input[name="exclude_tags_cb"]').forEach(cb => {
+                    cb.checked = d.excludeTags.includes(cb.value);
+                });
+            }
+
+            // SMTP
+            if (d.smtpIds) {
+                document.querySelectorAll('input[name="smtp_ids"]').forEach(cb => {
+                    cb.checked = d.smtpIds.includes(cb.value);
+                });
+                updateSmtpSelection();
+            }
+
+            // Timing
+            const timingRadios = document.querySelectorAll('input[name="timing"]');
+            timingRadios.forEach(r => r.checked = (r.value === (d.timing || 'now')));
+            updateTimingUI();
+            if (d.scheduledAt) document.getElementById('scheduledAt').value = d.scheduledAt;
+
+            // Delay
+            if (d.delayType === 'random') {
+                document.querySelector('input[name="delay_type"][value="random"]').checked = true;
+                if (d.delayMin) document.getElementById('emailDelayMin').value = d.delayMin;
+                if (d.delayMax) document.getElementById('emailDelayMax').value = d.delayMax;
+            } else {
+                document.querySelector('input[name="delay_type"][value="fixed"]').checked = true;
+                if (d.emailDelay) document.getElementById('emailDelay').value = d.emailDelay;
+            }
+            updateDelayUI();
+
+            if (d.testInboxInterval) document.getElementById('testInboxInterval').value = d.testInboxInterval;
+            if (d.testEmail) document.getElementById('testEmailSelect').value = d.testEmail;
+
+        } catch (e) {
+            console.error('Failed to restore draft:', e);
+        }
+    }
+
+    // Save draft on every change
+    document.getElementById('campaignForm').addEventListener('input', saveDraftToStorage);
+    document.getElementById('campaignForm').addEventListener('change', saveDraftToStorage);
+
 </script>
 {% endblock %}
