@@ -4,7 +4,8 @@ ADIL APP - Email Sender Application
 Application d'envoi d'emails en masse avec multi-SMTP et rotation.
 """
 
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+from functools import wraps
 from datetime import datetime
 
 # Import des fonctions database
@@ -84,6 +85,9 @@ from database import (
     add_offer,
     update_offer,
     delete_offer,
+    # Users
+    verify_user,
+    get_user_by_id,
 )
 from email_filters import apply_filters
 from send_worker import send_worker, start_send_worker, get_worker_status
@@ -106,9 +110,40 @@ bounce_worker.start()
 start_send_worker()
 
 # =========================
+# LOGIN DEFINITIONS
+# =========================
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login', next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        user = verify_user(username, password)
+        if user:
+            session['user_id'] = user['id']
+            next_url = request.args.get("next")
+            return redirect(next_url or url_for("dashboard"))
+        flash("Identifiants incorrects.", "danger")
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.pop('user_id', None)
+    return redirect(url_for("login"))
+
+
+# =========================
 # ROUTES - DASHBOARD
 # =========================
 @app.route("/")
+@login_required
 def dashboard():
     stats = get_stats_summary()
     daily_stats = get_stats_last_days(7)
@@ -116,6 +151,7 @@ def dashboard():
 
 
 @app.route("/api/dashboard/stats")
+@login_required
 def api_dashboard_stats():
     """Real-time dashboard stats: hourly today + daily this month."""
     from flask import jsonify
@@ -232,6 +268,7 @@ def api_dashboard_stats():
 # ROUTES - EMAILS (Templates)
 # =========================
 @app.route("/emails", methods=["GET", "POST"])
+@login_required
 def emails():
     emails_list = get_all_emails()
     
@@ -369,6 +406,7 @@ def emails():
 # ROUTES - SMTP
 # =========================
 @app.route("/smtp", methods=["GET", "POST"])
+@login_required
 def smtp():
     if request.method == "POST":
         action = request.form.get("action")
@@ -436,6 +474,7 @@ def smtp():
 # ===========================
 
 @app.route("/bounce")
+@login_required
 def bounce_page():
     smtp_servers = get_all_smtp()
     logs = get_bounce_logs(limit=50)
@@ -452,6 +491,7 @@ def bounce_page():
 
 
 @app.route("/api/bounce/check/<int:smtp_id>")
+@login_required
 def api_bounce_check(smtp_id):
     from flask import jsonify
     result = bounce_worker.check_single(smtp_id)
@@ -459,6 +499,7 @@ def api_bounce_check(smtp_id):
 
 
 @app.route("/api/bounce/logs")
+@login_required
 def api_bounce_logs():
     from flask import jsonify
     logs = get_bounce_logs(limit=100)
@@ -466,6 +507,7 @@ def api_bounce_logs():
 
 
 @app.route("/api/bounce/blacklist")
+@login_required
 def api_bounce_blacklist():
     from flask import jsonify
     search = request.args.get('search', '')
@@ -474,6 +516,7 @@ def api_bounce_blacklist():
 
 
 @app.route("/api/bounce/blacklist/<path:email_addr>", methods=["DELETE"])
+@login_required
 def api_bounce_remove_blacklist(email_addr):
     from flask import jsonify
     try:
@@ -484,6 +527,7 @@ def api_bounce_remove_blacklist(email_addr):
 
 
 @app.route("/api/bounce/export")
+@login_required
 def api_bounce_export():
     from flask import Response
     blacklisted = get_all_blacklisted(limit=10000)
@@ -581,6 +625,7 @@ def track_open(job_id):
 
 # SMTP Test Connection API
 @app.route("/api/smtp/<int:smtp_id>/test")
+@login_required
 def api_test_smtp(smtp_id):
     """Test connection for a saved SMTP server."""
     from flask import jsonify
@@ -604,6 +649,7 @@ def api_test_smtp(smtp_id):
 
 
 @app.route("/api/smtp/test", methods=["POST"])
+@login_required
 def api_test_smtp_form():
     """Test connection for form data (before saving)."""
     from flask import jsonify
@@ -630,6 +676,7 @@ def api_test_smtp_form():
 
 
 @app.route("/api/smtp/<int:smtp_id>/check-dns")
+@login_required
 def api_check_dns(smtp_id):
     """Check DNS records (SPF, DKIM, DMARC) for an SMTP server's domain."""
     from flask import jsonify
@@ -745,6 +792,7 @@ def api_check_dns(smtp_id):
 # ROUTES - CONTACTS
 # =========================
 @app.route("/contacts", methods=["GET", "POST"])
+@login_required
 def contacts():
     import_result = None
     
@@ -985,6 +1033,7 @@ def contacts():
 # ROUTES - CONTACTS EXPORT
 # =========================
 @app.route("/contacts/export")
+@login_required
 def contacts_export():
     """Export contacts as CSV."""
     import csv
@@ -1027,6 +1076,7 @@ def contacts_export():
 # ROUTES - TAGS
 # =========================
 @app.route("/tags", methods=["GET", "POST"])
+@login_required
 def tags():
     if request.method == "POST":
         action = request.form.get("action")
@@ -1072,6 +1122,7 @@ def tags():
 # ROUTES - SETTINGS
 # =========================
 @app.route("/settings", methods=["GET", "POST"])
+@login_required
 def settings():
     if request.method == "POST":
         action = request.form.get("action")
@@ -1115,6 +1166,7 @@ def settings():
 # ROUTES - PRODUCTION / SEND
 # =========================
 @app.route("/send")
+@login_required
 def send_page():
     """Main send campaign page."""
     from database import get_db
@@ -1155,6 +1207,7 @@ def send_page():
 
 
 @app.route("/api/send/preview")
+@login_required
 def api_send_preview():
     """Get email preview with spintax variations."""
     import re
@@ -1243,6 +1296,7 @@ def get_audience_contacts_list(audience_type, include_tags, exclude_tags):
 
 
 @app.route("/api/send/estimate", methods=["POST"])
+@login_required
 def api_send_estimate():
     """Estimate recipient count based on audience selection."""
     data = request.get_json()
@@ -1255,6 +1309,7 @@ def api_send_estimate():
 
 
 @app.route("/api/send/validate", methods=["POST"])
+@login_required
 def api_send_validate():
     """Validate campaign configuration before sending."""
     from flask import jsonify
@@ -1327,6 +1382,7 @@ def api_send_validate():
 
 
 @app.route("/api/send/test", methods=["POST"])
+@login_required
 def api_send_test():
     """Send a test email."""
     from flask import jsonify
@@ -1410,6 +1466,7 @@ def api_send_test():
 
 
 @app.route("/api/campaign/save", methods=["POST"])
+@login_required
 def api_campaign_save():
     """Save or update a campaign as draft."""
     from flask import jsonify
@@ -1492,6 +1549,7 @@ def api_campaign_save():
 
 
 @app.route("/api/campaign/<int:campaign_id>", methods=["GET"])
+@login_required
 def api_campaign_get(campaign_id):
     """Get a single campaign's details for editing."""
     from flask import jsonify
@@ -1527,6 +1585,7 @@ def api_campaign_get(campaign_id):
 
 
 @app.route("/api/campaigns/list", methods=["GET"])
+@login_required
 def api_campaigns_list():
     """List all campaigns for dashboard."""
     from flask import jsonify
@@ -1557,6 +1616,7 @@ def api_campaigns_list():
 
 
 @app.route("/api/campaign/delete/<int:campaign_id>", methods=["DELETE"])
+@login_required
 def api_campaign_delete(campaign_id):
     """Delete a campaign."""
     from flask import jsonify, request
@@ -1600,6 +1660,7 @@ def api_campaign_delete(campaign_id):
 
 
 @app.route("/api/send/status/<int:campaign_id>")
+@login_required
 def api_send_status(campaign_id):
     """Get campaign status for live monitoring."""
     campaign = get_campaign_by_id(campaign_id)
@@ -1622,6 +1683,7 @@ def api_send_status(campaign_id):
 
 
 @app.route("/api/send/pause/<int:campaign_id>", methods=["POST"])
+@login_required
 def api_send_pause(campaign_id):
     """Pause a running campaign."""
     from flask import jsonify
@@ -1635,6 +1697,7 @@ def api_send_pause(campaign_id):
 
 
 @app.route("/api/send/start/<int:campaign_id>", methods=["POST"])
+@login_required
 def api_send_start(campaign_id):
     """Start or resume a campaign."""
     from flask import jsonify
@@ -1688,6 +1751,7 @@ def api_send_start(campaign_id):
     return jsonify({"success": True})
 
 @app.route("/historique")
+@login_required
 def route_historique():
     """Page pour afficher l'historique des campagnes supprimées."""
     from flask import render_template
@@ -1696,6 +1760,7 @@ def route_historique():
     return render_template("historique.html", history=history)
 
 @app.route("/api/send/stop/<int:campaign_id>", methods=["POST"])
+@login_required
 def api_send_stop(campaign_id):
     """Stop a campaign permanently."""
     from flask import jsonify
@@ -1709,6 +1774,7 @@ def api_send_stop(campaign_id):
 
 
 @app.route("/api/campaign/logs", methods=["GET"])
+@login_required
 def api_campaign_logs():
     """Get recent campaign activity logs."""
     from flask import jsonify
@@ -1717,6 +1783,7 @@ def api_campaign_logs():
 
 
 @app.route("/api/campaign/logs/clear", methods=["DELETE"])
+@login_required
 def api_campaign_logs_clear():
     """Clear all campaign activity logs."""
     from flask import jsonify
@@ -1730,6 +1797,7 @@ def api_campaign_logs_clear():
 
 
 @app.route("/api/campaigns/active")
+@login_required
 def api_campaigns_active():
     """Get the most recent active campaign (for dashboard polling)."""
     from flask import jsonify
@@ -1764,6 +1832,7 @@ def api_campaigns_active():
 
 # Keep old production route for backwards compatibility
 @app.route("/production")
+@login_required
 def production():
     return redirect(url_for("send_page"))
 
@@ -1772,6 +1841,7 @@ def production():
 # ROUTES - CAMPAIGNS (placeholder)
 # =========================
 @app.route("/campaigns", methods=["GET", "POST"])
+@login_required
 def campaigns():
     # TODO: Implémenter les campagnes
     return render_template("campaigns.html", campaigns=[])
@@ -1781,6 +1851,7 @@ def campaigns():
 # ROUTES - WARMING (placeholder)
 # =========================
 @app.route("/warming")
+@login_required
 def warming():
     return render_template("warming.html")
 
@@ -1789,6 +1860,7 @@ def warming():
 # ROUTES - OFFERS (placeholder)
 # =========================
 @app.route("/offers", methods=["GET", "POST"])
+@login_required
 def offers():
     if request.method == "POST":
         action = request.form.get("action")
@@ -1829,6 +1901,7 @@ def offers():
 
 
 @app.route("/api/contact/<int:contact_id>/history")
+@login_required
 def api_contact_history(contact_id):
     """API pour récupérer l'historique d'emails envoyés à un contact."""
     from flask import jsonify

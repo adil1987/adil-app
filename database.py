@@ -7,6 +7,7 @@ Gère toutes les opérations de base de données pour ADIL APP.
 import sqlite3
 import os
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
 DATABASE_FILE = "data/app.db"
 
@@ -415,6 +416,18 @@ def init_db():
         )
     """)
     
+    # ===========================
+    # TABLE: users
+    # ===========================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
     conn.commit()
     
     # Clean up orphan contact_tags (contacts that no longer exist)
@@ -439,6 +452,9 @@ def init_db():
     
     # Migrate emails table (add new columns if missing)
     _migrate_email_columns()
+    
+    # Init default user
+    init_admin_user()
     
     print("✅ Base de données initialisée avec succès!")
 
@@ -976,7 +992,7 @@ def add_contact(email, prenom=None, nom=None, source=None):
         conn.commit()
         contact_id = cursor.lastrowid
     except sqlite3.IntegrityError:
-        contact_id = None  # Email déjà existant
+        contact_id = None  # Email déjà existent
     conn.close()
     return contact_id
 
@@ -1455,6 +1471,43 @@ def count_contacts_by_tag(tag_id):
     row = cursor.fetchone()
     conn.close()
     return row["count"]
+
+
+# ===========================
+# HELPERS - Users & Authentication
+# ===========================
+def init_admin_user():
+    """Initialise le compte administrateur si la table est vide."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) as count FROM users")
+    if cursor.fetchone()['count'] == 0:
+        username = "Adil Boulal"
+        password_hash = generate_password_hash("Adilboulal01031987@")
+        cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (username, password_hash))
+        conn.commit()
+    conn.close()
+
+def verify_user(username, password):
+    """Vérifie si le mot de passe correspond au nom d'utilisateur."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if user and check_password_hash(user['password_hash'], password):
+        return dict(user)
+    return None
+
+def get_user_by_id(user_id):
+    """Récupère un utilisateur par ID."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    return dict(user) if user else None
 
 
 # ===========================
