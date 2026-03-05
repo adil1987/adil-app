@@ -357,7 +357,7 @@ class SendWorker:
                 update_campaign_status(campaign_id, 'completed')
                 camp = get_campaign_by_id(campaign_id)
                 cname = camp.get('name', '?') if camp else '?'
-                add_campaign_log(campaign_id, cname, 'completed', f"Campaign completed ({stats.get('sent', 0)} sent, {stats.get('failed', 0)} failed)")
+                add_campaign_log(campaign_id, cname, 'completed', f"Campaign completed ({stats.get('sent', 0)} sent, {stats.get('error', 0)} error)")
                 self.log(f"Campaign {campaign_id}: Completed!", 'success')
             return
         
