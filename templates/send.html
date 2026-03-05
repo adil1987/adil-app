@@ -304,7 +304,7 @@
         <button type="button" class="btn-secondary" onclick="validateCampaign()">
             🔍 Validate
         </button>
-        <button type="button" id="sendBtn" class="btn-primary" onclick="saveCampaign()" disabled>
+        <button type="button" id="sendBtn" class="btn-primary" onclick="saveCampaign()">
             💾 Save Campaign
         </button>
     </div>
@@ -608,7 +608,17 @@
         const testEmail = document.getElementById('testEmailSelect').value;
 
         if (!campaignName) {
-            alert("Please enter a campaign name.");
+            alert("Veuillez donner un nom à votre campagne.");
+            return;
+        }
+
+        if (!emailId) {
+            alert("Veuillez sélectionner un email.");
+            return;
+        }
+
+        if (!smtpIds || smtpIds.length === 0) {
+            alert("Veuillez sélectionner au moins un serveur SMTP.");
             return;
         }
 
