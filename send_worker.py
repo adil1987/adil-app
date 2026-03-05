@@ -104,9 +104,12 @@ class SendWorker:
         """Main worker loop."""
         while self.running:
             try:
+                print(f"[DEBUG] Polling for campaigns...", flush=True)
                 self._process_campaigns()
             except Exception as e:
                 self.log(f"Worker error: {e}", 'error')
+                import traceback
+                traceback.print_exc()
             
             time.sleep(self.poll_interval)
     
@@ -122,9 +125,12 @@ class SendWorker:
         campaigns = cursor.fetchall()
         conn.close()
         
+        print(f"[DEBUG] Found {len(campaigns)} active campaigns", flush=True)
+        
         for campaign_row in campaigns:
             campaign_id = campaign_row['id']
             status = campaign_row['status']
+            print(f"[DEBUG] Campaign {campaign_id}: status={status}", flush=True)
             
             if status == 'pending':
                 # Try to auto-resume: check if blocking condition cleared
@@ -317,12 +323,15 @@ class SendWorker:
     
     def _process_campaign(self, campaign_id):
         """Process a single campaign's pending jobs with Round Robin SMTP."""
+        print(f"[DEBUG] _process_campaign({campaign_id}) called", flush=True)
         campaign = get_campaign_by_id(campaign_id)
         if not campaign or campaign['status'] != 'sending':
+            print(f"[DEBUG] Campaign {campaign_id} skipped: not found or not sending (status={campaign.get('status') if campaign else 'None'})", flush=True)
             return
         
         # Get SMTP list and email template
         smtp_list = self._get_smtp_list(campaign)
+        print(f"[DEBUG] SMTP list: {len(smtp_list)} servers -> {[s.get('name', s.get('host', '?')) for s in smtp_list]}", flush=True)
         
         email_template = None
         if campaign.get('email_snapshot'):
@@ -332,6 +341,7 @@ class SendWorker:
                 pass
         if not email_template:
             email_template = get_email_by_id(campaign['email_id'])
+        print(f"[DEBUG] Email template: {'found' if email_template else 'MISSING'}", flush=True)
         
         if not smtp_list or not email_template:
             update_campaign_status(campaign_id, 'error', 'SMTP or Email template missing')
@@ -349,10 +359,12 @@ class SendWorker:
         # Fetch a larger batch for concurrent processing
         # We can fetch up to 50 jobs at a time to feed the threads
         jobs = get_pending_jobs(campaign_id, limit=50)
+        print(f"[DEBUG] Fetched {len(jobs)} pending jobs for campaign {campaign_id}", flush=True)
         
         if not jobs:
             # Check if campaign is complete
             stats = get_campaign_job_stats(campaign_id)
+            print(f"[DEBUG] No jobs left. Stats: {dict(stats)}", flush=True)
             if stats.get('queued', 0) == 0 and stats.get('sending', 0) == 0:
                 update_campaign_status(campaign_id, 'completed')
                 camp = get_campaign_by_id(campaign_id)
