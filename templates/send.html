@@ -561,7 +561,8 @@
                 smtp_ids: smtpIds,
                 audience_type: audienceType,
                 include_tags: includeTags,
-                exclude_tags: excludeTags
+                exclude_tags: excludeTags,
+                test_email: document.getElementById('testEmailSelect').value
             })
         })
             .then(r => r.json())

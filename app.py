@@ -1280,6 +1280,10 @@ def get_audience_contacts_list(audience_type, include_tags, exclude_tags):
             WHERE c.status = 'active' AND ct.tag_id IN ({placeholders})
         """, include_tags)
         contacts = cursor.fetchall()
+    elif audience_type == "tags" and not include_tags:
+        # No tags selected = 0 recipients (don't fall through to all)
+        conn.close()
+        return []
     else:
         cursor.execute("SELECT id, email FROM contacts WHERE status = 'active'")
         contacts = cursor.fetchall()
@@ -1389,6 +1393,10 @@ def api_send_validate():
         if total_daily_capacity > 0 and count > total_daily_capacity:
             days = -(-count // total_daily_capacity)  # ceil division
             warnings.append(f"SMTP daily limit exceeded: {count:,} recipients > {total_daily_capacity:,}/day capacity. Campaign will span ~{days} days")
+    # Check test inbox
+    test_email = data.get("test_email", "")
+    if not test_email:
+        warnings.append("No test inbox email selected")
     
     return jsonify({"errors": errors, "warnings": warnings, "valid": len(errors) == 0})
 
@@ -1638,10 +1646,10 @@ def api_campaign_delete(campaign_id):
     campaign = get_campaign_by_id(campaign_id)
     cname = campaign.get("name", "?") if campaign else "?"
     
-    # Store history archive before deleting ONLY if from dashboard
     source = request.args.get('source', '')
+    
     if campaign and source == 'dashboard':
-        # Resolve SMTP names since get_campaign_by_id doesn't parse them fully
+        # Dashboard delete: archive to history + hide from dashboard, but keep in DB
         smtp_names = []
         if campaign.get('smtp_snapshot'):
             try:
@@ -1661,6 +1669,16 @@ def api_campaign_delete(campaign_id):
         campaign['smtp_names'] = smtp_names
         insert_campaign_history(campaign)
         
+        # Mark as archived instead of deleting
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE campaigns SET status = 'archived' WHERE id = ?", (campaign_id,))
+        conn.commit()
+        conn.close()
+        add_campaign_log(campaign_id, cname, "delete", "Campaign archived from dashboard")
+        return jsonify({"success": True})
+    
+    # Send page delete: fully remove from DB
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM send_jobs WHERE campaign_id = ?", (campaign_id,))

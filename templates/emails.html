@@ -332,7 +332,17 @@
     function confirmWarnings() {
         closeWarningModal();
         pendingSubmit = true;
-        document.getElementById('emailForm').submit();
+        // Inject hidden input so Flask receives action=save on programmatic submit
+        const form = document.getElementById('emailForm');
+        let hiddenAction = form.querySelector('input[name="action"][type="hidden"]');
+        if (!hiddenAction) {
+            hiddenAction = document.createElement('input');
+            hiddenAction.type = 'hidden';
+            hiddenAction.name = 'action';
+            form.appendChild(hiddenAction);
+        }
+        hiddenAction.value = 'save';
+        form.submit();
     }
 
     // GENERATE TEXT FALLBACK
