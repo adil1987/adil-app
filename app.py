@@ -737,6 +737,29 @@ def go_confirm(job_id):
     
     return jsonify({"url": offer_url})
 
+
+@app.route("/go/test/<int:offer_id>")
+@login_required
+def go_test_page(offer_id):
+    """Preview the CPA filter page for testing (requires login)."""
+    from database import get_offer_by_id
+    offer = get_offer_by_id(offer_id)
+    if not offer or not offer.get('url'):
+        return "Offer not found", 404
+    return render_template("go.html", job_id=f"test/{offer_id}")
+
+
+@app.route("/go/test/<int:offer_id>/confirm")
+@login_required
+def go_test_confirm(offer_id):
+    """Return the CPA URL for test preview (requires login)."""
+    from database import get_offer_by_id
+    offer = get_offer_by_id(offer_id)
+    if not offer or not offer.get('url'):
+        return jsonify({"url": None, "error": "not found"})
+    return jsonify({"url": offer['url']})
+
+
 # SMTP Test Connection API
 @app.route("/api/smtp/<int:smtp_id>/test")
 @login_required

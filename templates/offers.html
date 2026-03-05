@@ -16,7 +16,8 @@
                     <th>ID</th>
                     <th>Nom</th>
                     <th>Sponsor</th>
-                    <th>URL</th>
+                    <th>URL CPA</th>
+                    <th>Lien Filtre</th>
                     <th>Type</th>
                     <th>Actions</th>
                 </tr>
@@ -27,11 +28,18 @@
                     <td>{{ o.id }}</td>
                     <td><strong>{{ o.name }}</strong></td>
                     <td>{{ o.sponsor or '-' }}</td>
-                    <td class="url-cell" title="{{ o.url }}">{{ o.url[:40] }}{% if o.url|length > 40 %}...{% endif %}</td>
+                    <td class="url-cell" title="{{ o.url }}">{{ o.url[:30] }}{% if o.url|length > 30 %}...{% endif %}
+                    </td>
+                    <td>
+                        <a href="/go/test/{{ o.id }}" target="_blank" class="btn-small"
+                            style="font-size:11px; padding:2px 6px; background:#8b5cf6; color:#fff; text-decoration:none; border-radius:4px;"
+                            title="Tester la page filtre">🔗 Test</a>
+                    </td>
                     <td><span class="badge gray">{{ o.type or 'CPA' }}</span></td>
                     <td class="actions">
                         <a href="/offers?edit={{ o.id }}" class="btn-edit" title="Éditer">✏️</a>
-                        <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer cette offre ?');">
+                        <form method="post" style="display:inline;"
+                            onsubmit="return confirm('Supprimer cette offre ?');">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="offer_id" value="{{ o.id }}">
                             <button type="submit" class="btn-delete" title="Supprimer">🗑️</button>
@@ -67,19 +75,37 @@
             <label>URL *</label>
             <input type="url" name="url" required value="{{ edit_offer.url if edit_offer else '' }}"
                 placeholder="https://track.example.com/offer123">
+            {% if edit_offer and edit_offer.url %}
+            <div
+                style="margin-top: 6px; padding: 8px 12px; background: #f3f0ff; border: 1px solid #c4b5fd; border-radius: 6px;">
+                <small style="color: #6b7280; display: block; margin-bottom: 4px;">🔗 Lien page filtre (test) :</small>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="text" id="filterLinkPreview" value="/go/test/{{ edit_offer.id }}" readonly
+                        style="flex:1; font-size:12px; padding:4px 8px; background:#fff; border:1px solid #d1d5db; border-radius:4px; color:#4b5563;">
+                    <button type="button" onclick="copyFilterLink()" class="btn-small"
+                        style="font-size:11px; padding:3px 8px; cursor:pointer;">📋 Copier</button>
+                    <a href="/go/test/{{ edit_offer.id }}" target="_blank" class="btn-small"
+                        style="font-size:11px; padding:3px 8px; background:#8b5cf6; color:#fff; text-decoration:none; border-radius:4px;">🔍
+                        Tester</a>
+                </div>
+            </div>
+            {% endif %}
 
             <label>Type</label>
             <select name="type">
-                <option value="CPA" {% if not edit_offer or edit_offer.type == 'CPA' %}selected{% endif %}>CPA</option>
-                <option value="CPC" {% if edit_offer and edit_offer.type == 'CPC' %}selected{% endif %}>CPC</option>
-                <option value="CPL" {% if edit_offer and edit_offer.type == 'CPL' %}selected{% endif %}>CPL</option>
-                <option value="CPS" {% if edit_offer and edit_offer.type == 'CPS' %}selected{% endif %}>CPS</option>
-                <option value="RevShare" {% if edit_offer and edit_offer.type == 'RevShare' %}selected{% endif %}>RevShare</option>
-                <option value="Flat" {% if edit_offer and edit_offer.type == 'Flat' %}selected{% endif %}>Flat Rate</option>
+                <option value="CPA" {% if not edit_offer or edit_offer.type=='CPA' %}selected{% endif %}>CPA</option>
+                <option value="CPC" {% if edit_offer and edit_offer.type=='CPC' %}selected{% endif %}>CPC</option>
+                <option value="CPL" {% if edit_offer and edit_offer.type=='CPL' %}selected{% endif %}>CPL</option>
+                <option value="CPS" {% if edit_offer and edit_offer.type=='CPS' %}selected{% endif %}>CPS</option>
+                <option value="RevShare" {% if edit_offer and edit_offer.type=='RevShare' %}selected{% endif %}>RevShare
+                </option>
+                <option value="Flat" {% if edit_offer and edit_offer.type=='Flat' %}selected{% endif %}>Flat Rate
+                </option>
             </select>
 
             <label>Notes</label>
-            <textarea name="notes" rows="3" placeholder="Notes internes...">{{ edit_offer.notes if edit_offer else '' }}</textarea>
+            <textarea name="notes" rows="3"
+                placeholder="Notes internes...">{{ edit_offer.notes if edit_offer else '' }}</textarea>
 
             <div class="form-actions-row">
                 <button type="submit">💾 Save</button>
@@ -91,5 +117,22 @@
     </div>
 
 </div>
+
+<script>
+    function copyFilterLink() {
+        const input = document.getElementById('filterLinkPreview');
+        if (input) {
+            // Build full URL
+            const fullUrl = window.location.origin + input.value;
+            navigator.clipboard.writeText(fullUrl).then(() => {
+                alert('✅ Lien copié : ' + fullUrl);
+            }).catch(() => {
+                input.select();
+                document.execCommand('copy');
+                alert('✅ Lien copié !');
+            });
+        }
+    }
+</script>
 
 {% endblock %}
