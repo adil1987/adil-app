@@ -94,13 +94,14 @@
             var seconds = 3;
             var countdownEl = document.getElementById('countdown');
             var manualLink = document.getElementById('manualLink');
+            var redirectDone = false;
 
             var timer = setInterval(function () {
                 seconds--;
                 countdownEl.textContent = seconds;
                 if (seconds <= 0) {
                     clearInterval(timer);
-                    countdownEl.textContent = '✓';
+                    countdownEl.textContent = '⏳';
                     doRedirect();
                 }
             }, 1000);
@@ -116,28 +117,33 @@
             });
 
             function doRedirect() {
-                // Call confirm endpoint, which returns the real CPA URL
-                var xhr = new XMLHttpRequest();
-                xhr.open('GET', '/go/' + jobId + '/confirm', true);
-                xhr.onload = function () {
-                    try {
-                        var data = JSON.parse(xhr.responseText);
+                if (redirectDone) return;
+                redirectDone = true;
+
+                var confirmUrl = '/go/' + jobId + '/confirm';
+                console.log('Calling confirm URL:', confirmUrl);
+
+                fetch(confirmUrl, { credentials: 'same-origin' })
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        console.log('Confirm response:', data);
                         if (data.url) {
                             window.location.href = data.url;
                         } else {
                             countdownEl.textContent = '❌';
+                            console.error('No URL in response:', data);
                         }
-                    } catch (e) {
+                    })
+                    .catch(function (err) {
                         countdownEl.textContent = '❌';
-                    }
-                };
-                xhr.onerror = function () {
-                    countdownEl.textContent = '❌';
-                };
-                xhr.send();
+                        console.error('Redirect error:', err);
+                    });
             }
         })();
     </script>
+    <noscript>
+        <p style="margin-top:20px;">JavaScript est requis pour continuer.</p>
+    </noscript>
 </body>
 
 </html>
