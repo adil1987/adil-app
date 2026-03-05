@@ -498,7 +498,8 @@ def smtp():
             "warmup_enabled": request.form.get("warmup_enabled") == "on",
             "bounce_email": request.form.get("bounce_email", ""),
             "bounce_password": request.form.get("bounce_password", ""),
-            "max_connections": int(request.form.get("max_connections", 1))
+            "max_connections": int(request.form.get("max_connections", 1)),
+            "tracking_url": request.form.get("tracking_url", "")
         }
         
         smtp_id = request.form.get("smtp_id")

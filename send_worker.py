@@ -570,7 +570,10 @@ class SendWorker:
             import re
             from urllib.parse import quote
             
-            base_url = "https://abc-connect.com"
+            # Use SMTP's tracking URL if configured, otherwise fallback
+            base_url = (smtp.get('tracking_url') or '').rstrip('/')
+            if not base_url:
+                base_url = "https://abc-connect.com"
             
             def rewrite_link(match):
                 """Replace href with tracking redirect, skip unsubscribe links."""
@@ -599,7 +602,7 @@ class SendWorker:
             body = body + honeypot_html
             
             # Inject tracking pixel (open tracking)
-            tracking_pixel = f'<img src="https://abc-connect.com/track/open/{job_id}.gif" width="1" height="1" style="display:none;" alt="" />'
+            tracking_pixel = f'<img src="{base_url}/track/open/{job_id}.gif" width="1" height="1" style="display:none;" alt="" />'
             body = body + tracking_pixel
             
             # Use SMTP's from_email as sender (not email template's)

@@ -192,6 +192,14 @@
                             placeholder="mail, default, s1...">
                     </div>
 
+                    <div class="form-group">
+                        <label for="smtpTrackingUrl">🔗 Tracking URL</label>
+                        <input type="url" id="smtpTrackingUrl" name="tracking_url"
+                            placeholder="https://track.yourdomain.com">
+                        <small style="color:#6b7280; font-size:11px;">Sous-domaine pour le tracking des clics et
+                            ouvertures (record A → IP du VPS)</small>
+                    </div>
+
                     <h3>📬 Bounce Mailbox</h3>
                     <div class="form-group">
                         <label for="smtpBounceEmail">Bounce Email</label>
@@ -332,6 +340,14 @@
                         <label for="editSmtpDkimSelector">DKIM Selector</label>
                         <input type="text" id="editSmtpDkimSelector" name="dkim_selector"
                             placeholder="mail, default, s1...">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editSmtpTrackingUrl">🔗 Tracking URL</label>
+                        <input type="url" id="editSmtpTrackingUrl" name="tracking_url"
+                            placeholder="https://track.yourdomain.com">
+                        <small style="color:#6b7280; font-size:11px;">Sous-domaine pour le tracking des clics et
+                            ouvertures</small>
                     </div>
 
                     <h3>📬 Bounce Mailbox</h3>
@@ -485,6 +501,7 @@
         document.getElementById('editSmtpFromEmail').value = smtp.from_email || '';
         document.getElementById('editSmtpSendingDomain').value = smtp.sending_domain || '';
         document.getElementById('editSmtpDkimSelector').value = smtp.dkim_selector || '';
+        document.getElementById('editSmtpTrackingUrl').value = smtp.tracking_url || '';
         document.getElementById('editSmtpBounceEmail').value = smtp.bounce_email || '';
         document.getElementById('editSmtpBouncePassword').value = smtp.bounce_password || '';
         document.getElementById('editSmtpRateLimit').value = smtp.rate_limit;

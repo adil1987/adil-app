@@ -53,6 +53,7 @@ def init_db():
             sending_domain TEXT,
             return_path_domain TEXT,
             dkim_selector TEXT,
+            tracking_url TEXT,
             dns_status TEXT,
             -- New: Safeguards
             auto_pause_on_error INTEGER DEFAULT 1,
@@ -517,6 +518,7 @@ def _migrate_smtp_columns():
         ("reputation_score", "REAL DEFAULT 100.0"),
         # DKIM/DNS
         ("dkim_selector", "TEXT"),
+        ("tracking_url", "TEXT"),
         ("dns_status", "TEXT"),
     ]
     
