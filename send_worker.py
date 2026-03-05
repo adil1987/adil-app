@@ -564,7 +564,41 @@ class SendWorker:
             elif footer_html:
                 body = body + footer_html
             
-            # Inject tracking pixel (Localhost base strictly for dev/test as requested by user)
+            # ==========================================
+            # CLICK TRACKING: Rewrite all links
+            # ==========================================
+            import re
+            from urllib.parse import quote
+            
+            base_url = "https://abc-connect.com"
+            
+            def rewrite_link(match):
+                """Replace href with tracking redirect, skip unsubscribe links."""
+                full_tag = match.group(0)
+                url = match.group(1)
+                # Skip unsubscribe links, empty links, anchors, mailto
+                if not url or 'unsubscribe' in url.lower() or url.startswith('#') or url.startswith('mailto:'):
+                    return full_tag
+                # Skip already-rewritten links
+                if '/track/click/' in url:
+                    return full_tag
+                tracked = f"{base_url}/track/click/{job_id}?url={quote(url, safe='')}"
+                return full_tag.replace(url, tracked)
+            
+            body = re.sub(r'<a\s[^>]*href=["\']([^"\']*)["\']', rewrite_link, body, flags=re.IGNORECASE)
+            
+            # ==========================================
+            # HONEYPOT: Invisible link (bot trap)
+            # ==========================================
+            honeypot_url = f"{base_url}/track/click/{job_id}?url=honeypot"
+            honeypot_html = (
+                f'<div style="overflow:hidden;height:0;width:0;max-height:0;max-width:0;opacity:0;mso-hide:all;">'
+                f'<a href="{honeypot_url}" style="font-size:0;line-height:0;color:transparent;text-decoration:none;" tabindex="-1">.</a>'
+                f'</div>'
+            )
+            body = body + honeypot_html
+            
+            # Inject tracking pixel (open tracking)
             tracking_pixel = f'<img src="https://abc-connect.com/track/open/{job_id}.gif" width="1" height="1" style="display:none;" alt="" />'
             body = body + tracking_pixel
             

@@ -667,6 +667,30 @@ def track_open(job_id):
         "Expires": "0"
     })
 
+
+@app.route("/track/click/<int:job_id>")
+def track_click(job_id):
+    """Track a link click, check for bots (honeypot + timing), then redirect."""
+    from database import mark_job_as_clicked
+    from urllib.parse import unquote
+    
+    target_url = request.args.get('url', '')
+    is_honeypot = (target_url == 'honeypot')
+    
+    # Process the click (bot detection happens inside mark_job_as_clicked)
+    result = mark_job_as_clicked(job_id, is_honeypot=is_honeypot)
+    
+    # If honeypot click, redirect to safe page
+    if is_honeypot:
+        return redirect('/')
+    
+    # Redirect to original URL
+    if target_url:
+        decoded_url = unquote(target_url)
+        return redirect(decoded_url)
+    
+    return redirect('/')
+
 # SMTP Test Connection API
 @app.route("/api/smtp/<int:smtp_id>/test")
 @login_required
