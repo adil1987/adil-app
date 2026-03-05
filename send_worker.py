@@ -537,14 +537,31 @@ class SendWorker:
             subject = self._personalize(email_template.get('subject', ''), contact_prenom, contact_nom, contact_email)
             body = self._personalize(email_template.get('body', ''), contact_prenom, contact_nom, contact_email)
             
-            # Replace {{tracking_link}} with offer URL
+            # Replace {{tracking_link}} with CPA filter page URL
             offer_id = email_template.get('offer_id')
             if offer_id:
                 offer = get_offer_by_id(int(offer_id))
                 if offer:
-                    tracking_url = offer.get('url', '')
-                    subject = subject.replace('{{tracking_link}}', tracking_url)
-                    body = body.replace('{{tracking_link}}', tracking_url)
+                    cpa_url = offer.get('url', '')
+                    if cpa_url:
+                        # Store the CPA URL on the job for later retrieval by /go/<job_id>
+                        try:
+                            from database import get_db
+                            conn = get_db()
+                            conn.execute("UPDATE send_jobs SET offer_url = ? WHERE id = ?", (cpa_url, job_id))
+                            conn.commit()
+                            conn.close()
+                        except Exception:
+                            pass
+                        
+                        # Use dynamic tracking URL for the /go/ page
+                        go_base = (smtp.get('tracking_url') or '').rstrip('/')
+                        if not go_base:
+                            go_base = "https://abc-connect.com"
+                        go_page_url = f"{go_base}/go/{job_id}"
+                        
+                        subject = subject.replace('{{tracking_link}}', go_page_url)
+                        body = body.replace('{{tracking_link}}', go_page_url)
             
             # Apply spintax
             subject = self._apply_spintax(subject)

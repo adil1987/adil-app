@@ -342,6 +342,9 @@ def init_db():
             clicked INTEGER DEFAULT 0,
             clicked_at TEXT,
             is_bot INTEGER DEFAULT 0,
+            offer_url TEXT,
+            confirmed_human INTEGER DEFAULT 0,
+            confirmed_at TEXT,
             FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
             FOREIGN KEY (contact_id) REFERENCES contacts(id)
         )
@@ -608,6 +611,21 @@ def _migrate_send_jobs_columns():
     
     try:
         cursor.execute("ALTER TABLE send_jobs ADD COLUMN is_bot INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE send_jobs ADD COLUMN offer_url TEXT")
+    except Exception:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE send_jobs ADD COLUMN confirmed_human INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE send_jobs ADD COLUMN confirmed_at TEXT")
     except Exception:
         pass
         

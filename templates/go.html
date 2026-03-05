@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirection...</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+
+        .container {
+            text-align: center;
+            padding: 40px;
+            max-width: 420px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 24px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        h1 {
+            font-size: 22px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        p {
+            font-size: 15px;
+            opacity: 0.85;
+            margin-bottom: 20px;
+        }
+
+        .countdown {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .manual-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            text-decoration: underline;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .manual-link.visible {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="spinner"></div>
+        <h1>⏳ Redirection en cours...</h1>
+        <p>Vous allez être redirigé dans quelques secondes.</p>
+        <div class="countdown" id="countdown">3</div>
+        <a class="manual-link" id="manualLink">Si rien ne se passe, cliquez ici</a>
+    </div>
+
+    <script>
+        (function () {
+            var jobId = "{{ job_id }}";
+            var seconds = 3;
+            var countdownEl = document.getElementById('countdown');
+            var manualLink = document.getElementById('manualLink');
+
+            var timer = setInterval(function () {
+                seconds--;
+                countdownEl.textContent = seconds;
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    countdownEl.textContent = '✓';
+                    doRedirect();
+                }
+            }, 1000);
+
+            // Show manual link after 5 seconds as fallback
+            setTimeout(function () {
+                manualLink.classList.add('visible');
+            }, 5000);
+
+            manualLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                doRedirect();
+            });
+
+            function doRedirect() {
+                // Call confirm endpoint, which returns the real CPA URL
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', '/go/' + jobId + '/confirm', true);
+                xhr.onload = function () {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.url) {
+                            window.location.href = data.url;
+                        } else {
+                            countdownEl.textContent = '❌';
+                        }
+                    } catch (e) {
+                        countdownEl.textContent = '❌';
+                    }
+                };
+                xhr.onerror = function () {
+                    countdownEl.textContent = '❌';
+                };
+                xhr.send();
+            }
+        })();
+    </script>
+</body>
+
+</html>

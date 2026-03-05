@@ -692,6 +692,51 @@ def track_click(job_id):
     
     return redirect('/')
 
+
+@app.route("/go/<int:job_id>")
+def go_filter_page(job_id):
+    """Serve the intermediate CPA filter page. Only for non-bot jobs."""
+    from database import get_db
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT is_bot, offer_url FROM send_jobs WHERE id = ?", (job_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    # If bot or no offer URL, redirect to safe page
+    if not row or row.get('is_bot', 0) == 1 or not row.get('offer_url'):
+        return redirect('/')
+    
+    return render_template("go.html", job_id=job_id)
+
+
+@app.route("/go/<int:job_id>/confirm")
+def go_confirm(job_id):
+    """Called by JavaScript after the timer. Returns the real CPA URL."""
+    from database import get_db
+    from datetime import datetime
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT is_bot, offer_url, confirmed_human, campaign_id FROM send_jobs WHERE id = ?", (job_id,))
+    row = cursor.fetchone()
+    
+    if not row or row.get('is_bot', 0) == 1 or not row.get('offer_url'):
+        conn.close()
+        return jsonify({"url": None, "error": "blocked"})
+    
+    # Mark as confirmed human (only count first time)
+    if row.get('confirmed_human', 0) == 0:
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute("UPDATE send_jobs SET confirmed_human = 1, confirmed_at = ? WHERE id = ?", (now_str, job_id))
+        conn.commit()
+    
+    offer_url = row['offer_url']
+    conn.close()
+    
+    return jsonify({"url": offer_url})
+
 # SMTP Test Connection API
 @app.route("/api/smtp/<int:smtp_id>/test")
 @login_required
