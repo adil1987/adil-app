@@ -321,6 +321,25 @@ def init_db():
         )
     """)
     
+    # ===========================
+    # TABLE: send_jobs
+    # ===========================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS send_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_id INTEGER NOT NULL,
+            contact_id INTEGER NOT NULL,
+            status TEXT DEFAULT 'queued',
+            error_message TEXT,
+            retry_count INTEGER DEFAULT 0,
+            queued_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            sent_at TEXT,
+            opened INTEGER DEFAULT 0,
+            FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
+            FOREIGN KEY (contact_id) REFERENCES contacts(id)
+        )
+    """)
+    
     # Migrate campaigns table: add new columns if missing
     for col, coldef in [
         ("smtp_id", "INTEGER DEFAULT 0"),
@@ -344,22 +363,6 @@ def init_db():
             cursor.execute(f"ALTER TABLE campaigns ADD COLUMN {col} {coldef}")
         except Exception:
             pass  # Column already exists
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS send_jobs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            campaign_id INTEGER NOT NULL,
-            contact_id INTEGER NOT NULL,
-            status TEXT DEFAULT 'queued',
-            error_message TEXT,
-            retry_count INTEGER DEFAULT 0,
-            queued_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            sent_at TEXT,
-            opened INTEGER DEFAULT 0,
-            FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
-            FOREIGN KEY (contact_id) REFERENCES contacts(id)
-        )
-    """)
-    
     # ===========================
     # TABLE: campaign_logs (activity journal)
     # ===========================
