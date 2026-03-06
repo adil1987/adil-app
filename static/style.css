@@ -35,6 +35,8 @@ body {
     position: fixed;
     top: 55px;
     left: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .sidebar a {
