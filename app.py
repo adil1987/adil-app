@@ -876,12 +876,20 @@ def api_check_dns(smtp_id):
     resolver.timeout = 2.0
     resolver.lifetime = 2.0
     
-    # Check SPF - try sending domain first, then root domain
-    domains_for_spf = [domain]
-    if root_domain != domain:
-        domains_for_spf.append(root_domain)
-    
-    for spf_domain in domains_for_spf:
+    # Build a comprehensive list of domains to check (without duplicates)
+    domains_to_check = []
+    if sending_domain and sending_domain not in domains_to_check:
+        domains_to_check.append(sending_domain)
+    if from_domain and from_domain not in domains_to_check:
+        domains_to_check.append(from_domain)
+    domain_field = smtp.get("domain") or ""
+    if domain_field and domain_field not in domains_to_check:
+        domains_to_check.append(domain_field)
+    if root_domain and root_domain not in domains_to_check:
+        domains_to_check.append(root_domain)
+
+    # Check SPF
+    for spf_domain in domains_to_check:
         if result["spf"]:
             break
         try:
@@ -903,14 +911,10 @@ def api_check_dns(smtp_id):
         if s not in dkim_selectors:
             dkim_selectors.append(s)
     
-    domains_to_try = [domain]
-    if root_domain != domain:
-        domains_to_try.append(root_domain)
-    
     for sel in dkim_selectors:
         if result["dkim"]:
             break
-        for d in domains_to_try:
+        for d in domains_to_check:
             dkim_domain = f"{sel}._domainkey.{d}"
             # Try TXT record first
             try:
@@ -931,12 +935,8 @@ def api_check_dns(smtp_id):
             except Exception:
                 continue
     
-    # Check DMARC - try sending domain first, then root domain
-    domains_for_dmarc = [domain]
-    if root_domain != domain:
-        domains_for_dmarc.append(root_domain)
-    
-    for dmarc_d in domains_for_dmarc:
+    # Check DMARC
+    for dmarc_d in domains_to_check:
         if result["dmarc"]:
             break
         try:
