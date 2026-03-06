@@ -896,6 +896,7 @@ def api_check_dns(smtp_id):
             pass
     
     # Check DKIM - try configured selector first, then common ones
+    # Check both TXT and CNAME records (many providers use CNAME for DKIM)
     dkim_selectors = [dkim_selector]
     common_selectors = ["google", "selector1", "selector2", "s1", "s2", "mail", "dkim", "k1", "default"]
     for s in common_selectors:
@@ -910,9 +911,19 @@ def api_check_dns(smtp_id):
         if result["dkim"]:
             break
         for d in domains_to_try:
+            dkim_domain = f"{sel}._domainkey.{d}"
+            # Try TXT record first
             try:
-                dkim_domain = f"{sel}._domainkey.{d}"
                 resolver.resolve(dkim_domain, 'TXT')
+                result["dkim"] = True
+                result["dkim_selector"] = sel
+                dns_status.append("dkim_ok")
+                break
+            except Exception:
+                pass
+            # Try CNAME record (many providers use CNAME for DKIM)
+            try:
+                resolver.resolve(dkim_domain, 'CNAME')
                 result["dkim"] = True
                 result["dkim_selector"] = sel
                 dns_status.append("dkim_ok")
@@ -936,10 +947,10 @@ def api_check_dns(smtp_id):
                 if 'v=DMARC1' in txt:
                     if 'p=reject' in txt or 'p=quarantine' in txt:
                         result["dmarc"] = "✅ DMARC enforcing"
-                        dns_status.append("dmarc_ok")
                     else:
                         result["dmarc"] = "⚠️ DMARC p=none"
-                        dns_status.append("dmarc_none")
+                    # All DMARC records are valid (even p=none)
+                    dns_status.append("dmarc_ok")
                     break
         except Exception:
             pass
