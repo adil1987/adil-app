@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}DMARC Health Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🛡️ DMARC Health Dashboard</h1>
+    <p class="page-description">Surveillez l'état de la réception des rapports DMARC pour vos serveurs SMTP.</p>
+</div>
+
+{% if smtp_servers %}
+<div class="smtp-list" style="margin-top: 20px;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Serveur SMTP</th>
+                <th>Domaine d'envoi</th>
+                <th>Boîte de Rapport (RUA)</th>
+                <th>Statut</th>
+                <th style="width: 120px; text-align: center;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for smtp in smtp_servers %}
+            <tr>
+                <td><strong>{{ smtp.name }}</strong><br><small style="color:#6b7280;">{{ smtp.host }}</small></td>
+                <td>{{ smtp.sending_domain or '-' }}</td>
+                <td>
+                    {% if smtp.dmarc_email %}
+                    <span>{{ smtp.dmarc_email }}</span>
+                    {% else %}
+                    <span style="color:#94a3b8; font-style:italic;">Non configurée</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span id="status-{{ smtp.id }}">
+                        {% if not smtp.dmarc_email %}
+                        <span class="badge gray">Inactif</span>
+                        {% else %}
+                        <span class="badge orange">En attente de test</span>
+                        {% endif %}
+                    </span>
+                </td>
+                <td style="text-align: center;">
+                    {% if smtp.dmarc_email %}
+                    <button class="btn-small btn-test" onclick="checkHealth({{ smtp.id }})"
+                        title="Vérifier la connexion IMAP"
+                        style="background:#3b82f6; color:#fff; border:none; padding:6px 10px; border-radius:4px; font-size:13px; cursor:pointer;">
+                        🔍 Check
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <div style="font-size: 48px; margin-bottom: 10px;">🛡️</div>
+    <h3>Aucun serveur SMTP</h3>
+    <p>Ajoutez d'abord des serveurs SMTP avec leurs configurations DMARC pour commencer l'analyse de santé.</p>
+</div>
+{% endif %}
+
+<script>
+    function checkHealth(smtpId) {
+        const statusSpan = document.getElementById('status-' + smtpId);
+        statusSpan.innerHTML = '<span class="badge gray">Vérification...</span>';
+
+        fetch('/api/health/check/' + smtpId, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    statusSpan.innerHTML = '<span class="badge green">✅ ' + data.message + '</span>';
+                } else {
+                    statusSpan.innerHTML = '<span class="badge red">❌ ' + data.error + '</span>';
+                }
+            })
+            .catch(err => {
+                statusSpan.innerHTML = '<span class="badge red">❌ Erreur réseau</span>';
+            });
+    }
+</script>
+{% endblock %}

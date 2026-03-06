@@ -61,6 +61,9 @@ def init_db():
             max_spam_rate REAL DEFAULT 0.1,
             pause_reason TEXT,
             max_connections INTEGER DEFAULT 1,
+            -- New: DMARC Reports
+            dmarc_email TEXT DEFAULT '',
+            dmarc_password TEXT DEFAULT '',
             -- New: Warmup
             warmup_enabled INTEGER DEFAULT 1,
             warmup_start_date TEXT,
@@ -91,6 +94,16 @@ def init_db():
         pass
     try:
         cursor.execute("ALTER TABLE smtp_servers ADD COLUMN bounce_password TEXT DEFAULT ''")
+    except Exception:
+        pass
+        
+    # Migrate smtp_servers: add dmarc columns if missing
+    try:
+        cursor.execute("ALTER TABLE smtp_servers ADD COLUMN dmarc_email TEXT DEFAULT ''")
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE smtp_servers ADD COLUMN dmarc_password TEXT DEFAULT ''")
     except Exception:
         pass
         

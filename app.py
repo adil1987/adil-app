@@ -447,6 +447,42 @@ def emails():
 
 
 # =========================
+# ROUTES - DMARC HEALTH
+# =========================
+@app.route("/health")
+@login_required
+def health():
+    smtp_servers = get_all_smtp()
+    return render_template("health.html", smtp_servers=smtp_servers)
+
+@app.route("/api/health/check/<int:smtp_id>", methods=["POST"])
+@login_required
+def api_health_check(smtp_id):
+    smtp = get_smtp_by_id(smtp_id)
+    if not smtp or not smtp.get("dmarc_email") or not smtp.get("dmarc_password"):
+        return jsonify({"success": False, "error": "Serveur ou identifiants introuvables."})
+    
+    import imaplib
+    try:
+        # Connect to IMAP
+        mail = imaplib.IMAP4_SSL(smtp["host"], 993)
+        mail.login(smtp["dmarc_email"], smtp["dmarc_password"])
+        
+        # Verify INBOX exists
+        status, messages = mail.select("INBOX")
+        mail.logout()
+        
+        if status == "OK":
+            return jsonify({"success": True, "message": "Connexion IMAP réussie !"})
+        else:
+            return jsonify({"success": False, "error": "Impossible de sélectionner la boîte INBOX."})
+            
+    except imaplib.IMAP4.error as e:
+        return jsonify({"success": False, "error": "Identifiants invalides."})
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Erreur de connexion : {str(e)}"})
+
+# =========================
 # ROUTES - SMTP
 # =========================
 @app.route("/smtp", methods=["GET", "POST"])
@@ -498,6 +534,8 @@ def smtp():
             "warmup_enabled": request.form.get("warmup_enabled") == "on",
             "bounce_email": request.form.get("bounce_email", ""),
             "bounce_password": request.form.get("bounce_password", ""),
+            "dmarc_email": request.form.get("dmarc_email", ""),
+            "dmarc_password": request.form.get("dmarc_password", ""),
             "max_connections": int(request.form.get("max_connections", 1)),
             "tracking_url": request.form.get("tracking_url", "").strip()
         }
