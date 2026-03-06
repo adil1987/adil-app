@@ -499,8 +499,12 @@ def smtp():
             "bounce_email": request.form.get("bounce_email", ""),
             "bounce_password": request.form.get("bounce_password", ""),
             "max_connections": int(request.form.get("max_connections", 1)),
-            "tracking_url": request.form.get("tracking_url", "")
+            "tracking_url": request.form.get("tracking_url", "").strip()
         }
+        
+        # Auto-prepend https:// if user omitted it
+        if data["tracking_url"] and not data["tracking_url"].startswith("http"):
+            data["tracking_url"] = "https://" + data["tracking_url"]
         
         smtp_id = request.form.get("smtp_id")
         if smtp_id and action == "edit":
