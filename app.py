@@ -696,7 +696,7 @@ def track_click(job_id):
 @app.route("/go/<int:job_id>")
 def go_filter_page(job_id):
     """Serve the intermediate CPA filter page. Only for non-bot jobs."""
-    from database import get_db
+    from database import get_db, mark_job_as_clicked
     
     try:
         conn = get_db()
@@ -713,6 +713,10 @@ def go_filter_page(job_id):
         # If bot or no offer URL, redirect to safe page
         if job.get('is_bot', 0) == 1 or not job.get('offer_url'):
             return redirect('https://google.com')
+        
+        # Count as a click (if not already counted)
+        if job.get('clicked', 0) == 0:
+            mark_job_as_clicked(job_id, is_honeypot=False)
         
         return render_template("go.html", job_id=job_id)
     except Exception as e:
