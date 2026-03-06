@@ -1837,89 +1837,103 @@ def get_blacklist_count():
 # ===========================
 def mark_job_as_opened(job_id):
     """Marque un job d'envoi comme ouvert et incrémente le compteur de la campagne si c'est la première ouverture."""
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    # Check if already opened or bot
-    cursor.execute("SELECT opened, campaign_id, is_bot FROM send_jobs WHERE id = ?", (job_id,))
-    row = cursor.fetchone()
-    
-    if row and row['opened'] == 0 and row.get('is_bot', 0) == 0:
-        # Mark job as opened
-        cursor.execute("UPDATE send_jobs SET opened = 1 WHERE id = ?", (job_id,))
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
         
-        # Increment campaign total
-        if row['campaign_id']:
-            cursor.execute("UPDATE campaigns SET open_count = open_count + 1 WHERE id = ?", (row['campaign_id'],))
+        # Check if already opened or bot
+        cursor.execute("SELECT opened, campaign_id, is_bot FROM send_jobs WHERE id = ?", (job_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            return False
+        
+        job = dict(row)
+        
+        if job.get('opened', 0) == 0 and job.get('is_bot', 0) == 0:
+            # Mark job as opened
+            cursor.execute("UPDATE send_jobs SET opened = 1 WHERE id = ?", (job_id,))
             
-        conn.commit()
-        success = True
-    else:
-        success = False
+            # Increment campaign total
+            if job.get('campaign_id'):
+                cursor.execute("UPDATE campaigns SET open_count = open_count + 1 WHERE id = ?", (job['campaign_id'],))
+                
+            conn.commit()
+            conn.close()
+            return True
         
-    conn.close()
-    return success
+        conn.close()
+        return False
+    except Exception as e:
+        print(f"[TRACK OPEN] Error for job {job_id}: {e}")
+        return False
 
 
 def mark_job_as_clicked(job_id, is_honeypot=False):
     """Mark a job as clicked. Returns 'bot' if bot detected, 'ok' if legit, 'skip' if already clicked."""
     from datetime import datetime, timedelta
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT clicked, is_bot, sent_at, campaign_id FROM send_jobs WHERE id = ?", (job_id,))
-    row = cursor.fetchone()
-    
-    if not row:
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT clicked, is_bot, sent_at, campaign_id, opened FROM send_jobs WHERE id = ?", (job_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            return 'skip'
+        
+        job = dict(row)
+        now = datetime.now()
+        now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # === HONEYPOT CHECK ===
+        if is_honeypot:
+            # Bot detected via honeypot! Flag the job
+            cursor.execute("UPDATE send_jobs SET is_bot = 1 WHERE id = ?", (job_id,))
+            # Also undo any previously counted open
+            if job.get('opened', 0) == 1 and job.get('campaign_id'):
+                cursor.execute("UPDATE campaigns SET open_count = MAX(0, open_count - 1) WHERE id = ?", (job['campaign_id'],))
+            conn.commit()
+            conn.close()
+            return 'bot'
+        
+        # === TIMING CHECK ===
+        if job.get('sent_at'):
+            try:
+                sent_time = datetime.strptime(job['sent_at'][:19], '%Y-%m-%d %H:%M:%S')
+                elapsed = (now - sent_time).total_seconds()
+                if elapsed < 3:  # Click within 3 seconds of sending = bot
+                    cursor.execute("UPDATE send_jobs SET is_bot = 1 WHERE id = ?", (job_id,))
+                    # Also undo any previously counted open
+                    if job.get('opened', 0) == 1 and job.get('campaign_id'):
+                        cursor.execute("UPDATE campaigns SET open_count = MAX(0, open_count - 1) WHERE id = ?", (job['campaign_id'],))
+                    conn.commit()
+                    conn.close()
+                    return 'bot'
+            except Exception:
+                pass
+        
+        # === ALREADY BOT ===
+        if job.get('is_bot', 0) == 1:
+            conn.close()
+            return 'bot'
+        
+        # === LEGIT CLICK ===
+        if job.get('clicked', 0) == 0:
+            cursor.execute("UPDATE send_jobs SET clicked = 1, clicked_at = ? WHERE id = ?", (now_str, job_id))
+            if job.get('campaign_id'):
+                cursor.execute("UPDATE campaigns SET click_count = click_count + 1 WHERE id = ?", (job['campaign_id'],))
+            conn.commit()
+            conn.close()
+            return 'ok'
+        
         conn.close()
         return 'skip'
-    
-    now = datetime.now()
-    now_str = now.strftime('%Y-%m-%d %H:%M:%S')
-    
-    # === HONEYPOT CHECK ===
-    if is_honeypot:
-        # Bot detected via honeypot! Flag the job
-        cursor.execute("UPDATE send_jobs SET is_bot = 1 WHERE id = ?", (job_id,))
-        # Also undo any previously counted open
-        if row.get('opened') == 1 and row['campaign_id']:
-            cursor.execute("UPDATE campaigns SET open_count = MAX(0, open_count - 1) WHERE id = ?", (row['campaign_id'],))
-        conn.commit()
-        conn.close()
-        return 'bot'
-    
-    # === TIMING CHECK ===
-    if row['sent_at']:
-        try:
-            sent_time = datetime.strptime(row['sent_at'][:19], '%Y-%m-%d %H:%M:%S')
-            elapsed = (now - sent_time).total_seconds()
-            if elapsed < 3:  # Click within 3 seconds of sending = bot
-                cursor.execute("UPDATE send_jobs SET is_bot = 1 WHERE id = ?", (job_id,))
-                # Also undo any previously counted open
-                if row.get('opened') == 1 and row['campaign_id']:
-                    cursor.execute("UPDATE campaigns SET open_count = MAX(0, open_count - 1) WHERE id = ?", (row['campaign_id'],))
-                conn.commit()
-                conn.close()
-                return 'bot'
-        except Exception:
-            pass
-    
-    # === ALREADY BOT ===
-    if row.get('is_bot', 0) == 1:
-        conn.close()
-        return 'bot'
-    
-    # === LEGIT CLICK ===
-    if row['clicked'] == 0:
-        cursor.execute("UPDATE send_jobs SET clicked = 1, clicked_at = ? WHERE id = ?", (now_str, job_id))
-        if row['campaign_id']:
-            cursor.execute("UPDATE campaigns SET click_count = click_count + 1 WHERE id = ?", (row['campaign_id'],))
-        conn.commit()
-        conn.close()
-        return 'ok'
-    
-    conn.close()
-    return 'skip'
+    except Exception as e:
+        print(f"[TRACK CLICK] Error for job {job_id}: {e}")
+        return 'skip'
 
 
 def filter_blacklisted_emails(emails):
