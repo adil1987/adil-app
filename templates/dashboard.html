@@ -238,7 +238,7 @@
                         },
                         options: {
                             responsive: true, maintainAspectRatio: false,
-                            scales: { y: { beginAtZero: true }, x: { ticks: { autoSkip: true } } }
+                            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { autoSkip: true } } }
                         }
                     });
                 }
@@ -282,7 +282,7 @@
                         },
                         options: {
                             responsive: true, maintainAspectRatio: false,
-                            scales: { y: { beginAtZero: true }, x: { ticks: { autoSkip: true, maxTicksLimit: 15 } } }
+                            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { autoSkip: true, maxTicksLimit: 15 } } }
                         }
                     });
                 }
