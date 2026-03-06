@@ -683,14 +683,14 @@ def track_click(job_id):
     
     # If honeypot click, redirect to safe page
     if is_honeypot:
-        return redirect('/')
+        return redirect('https://google.com')
     
     # Redirect to original URL
     if target_url:
         decoded_url = unquote(target_url)
         return redirect(decoded_url)
     
-    return redirect('/')
+    return redirect('https://google.com')
 
 
 @app.route("/go/<int:job_id>")
@@ -706,18 +706,18 @@ def go_filter_page(job_id):
         conn.close()
         
         if not row:
-            return redirect('/')
+            return redirect('https://google.com')
         
         job = dict(row)
         
         # If bot or no offer URL, redirect to safe page
         if job.get('is_bot', 0) == 1 or not job.get('offer_url'):
-            return redirect('/')
+            return redirect('https://google.com')
         
         return render_template("go.html", job_id=job_id)
     except Exception as e:
         print(f"[GO] Error for job {job_id}: {e}")
-        return redirect('/')
+        return redirect('https://google.com')
 
 
 @app.route("/go/<int:job_id>/confirm")
