@@ -726,11 +726,11 @@ def add_smtp(data):
     cursor.execute("""
         INSERT INTO smtp_servers (
             name, host, port, username, password, use_tls, from_email, rate_limit, daily_limit, 
-            priority, domain, ip_address, sending_domain, return_path_domain, dkim_selector,
+            priority, domain, ip_address, sending_domain, return_path_domain, dkim_selector, tracking_url,
             auto_pause_on_error, max_bounce_rate, max_spam_rate, warmup_enabled,
-            bounce_email, bounce_password, max_connections
+            bounce_email, bounce_password, dmarc_email, dmarc_password, max_connections
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         data.get("name"),
         data.get("host"),
@@ -747,12 +747,15 @@ def add_smtp(data):
         data.get("sending_domain", ""),
         data.get("return_path_domain", ""),
         data.get("dkim_selector", ""),
+        data.get("tracking_url", ""),
         1 if data.get("auto_pause_on_error", True) else 0,
         data.get("max_bounce_rate", 5.0),
         data.get("max_spam_rate", 0.1),
         1 if data.get("warmup_enabled", True) else 0,
         data.get("bounce_email", ""),
         data.get("bounce_password", ""),
+        data.get("dmarc_email", ""),
+        data.get("dmarc_password", ""),
         data.get("max_connections", 1)
     ))
     conn.commit()
@@ -768,9 +771,9 @@ def update_smtp(smtp_id, data):
     cursor.execute("""
         UPDATE smtp_servers 
         SET name=?, host=?, port=?, username=?, password=?, use_tls=?, from_email=?, rate_limit=?, daily_limit=?, 
-            is_active=?, priority=?, domain=?, ip_address=?, sending_domain=?, return_path_domain=?, dkim_selector=?,
+            is_active=?, priority=?, domain=?, ip_address=?, sending_domain=?, return_path_domain=?, dkim_selector=?, tracking_url=?,
             auto_pause_on_error=?, max_bounce_rate=?, max_spam_rate=?, warmup_enabled=?,
-            bounce_email=?, bounce_password=?, max_connections=?
+            bounce_email=?, bounce_password=?, dmarc_email=?, dmarc_password=?, max_connections=?
         WHERE id=?
     """, (
         data.get("name"),
@@ -789,12 +792,15 @@ def update_smtp(smtp_id, data):
         data.get("sending_domain", ""),
         data.get("return_path_domain", ""),
         data.get("dkim_selector", ""),
+        data.get("tracking_url", ""),
         1 if data.get("auto_pause_on_error", True) else 0,
         data.get("max_bounce_rate", 5.0),
         data.get("max_spam_rate", 0.1),
         1 if data.get("warmup_enabled", True) else 0,
         data.get("bounce_email", ""),
         data.get("bounce_password", ""),
+        data.get("dmarc_email", ""),
+        data.get("dmarc_password", ""),
         data.get("max_connections", 1),
         smtp_id
     ))
