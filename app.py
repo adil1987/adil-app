@@ -698,17 +698,26 @@ def go_filter_page(job_id):
     """Serve the intermediate CPA filter page. Only for non-bot jobs."""
     from database import get_db
     
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT is_bot, offer_url FROM send_jobs WHERE id = ?", (job_id,))
-    row = cursor.fetchone()
-    conn.close()
-    
-    # If bot or no offer URL, redirect to safe page
-    if not row or row.get('is_bot', 0) == 1 or not row.get('offer_url'):
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM send_jobs WHERE id = ?", (job_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row:
+            return redirect('/')
+        
+        job = dict(row)
+        
+        # If bot or no offer URL, redirect to safe page
+        if job.get('is_bot', 0) == 1 or not job.get('offer_url'):
+            return redirect('/')
+        
+        return render_template("go.html", job_id=job_id)
+    except Exception as e:
+        print(f"[GO] Error for job {job_id}: {e}")
         return redirect('/')
-    
-    return render_template("go.html", job_id=job_id)
 
 
 @app.route("/go/<int:job_id>/confirm")
@@ -718,25 +727,35 @@ def go_confirm(job_id):
     from database import get_db
     from datetime import datetime
     
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT is_bot, offer_url, confirmed_human, campaign_id FROM send_jobs WHERE id = ?", (job_id,))
-    row = cursor.fetchone()
-    
-    if not row or row.get('is_bot', 0) == 1 or not row.get('offer_url'):
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM send_jobs WHERE id = ?", (job_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            return jsonify({"url": None, "error": "not found"})
+        
+        job = dict(row)
+        
+        if job.get('is_bot', 0) == 1 or not job.get('offer_url'):
+            conn.close()
+            return jsonify({"url": None, "error": "blocked"})
+        
+        # Mark as confirmed human (only count first time)
+        if job.get('confirmed_human', 0) == 0:
+            now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            cursor.execute("UPDATE send_jobs SET confirmed_human = 1, confirmed_at = ? WHERE id = ?", (now_str, job_id))
+            conn.commit()
+        
+        offer_url = job['offer_url']
         conn.close()
-        return jsonify({"url": None, "error": "blocked"})
-    
-    # Mark as confirmed human (only count first time)
-    if row.get('confirmed_human', 0) == 0:
-        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        cursor.execute("UPDATE send_jobs SET confirmed_human = 1, confirmed_at = ? WHERE id = ?", (now_str, job_id))
-        conn.commit()
-    
-    offer_url = row['offer_url']
-    conn.close()
-    
-    return jsonify({"url": offer_url})
+        
+        return jsonify({"url": offer_url})
+    except Exception as e:
+        print(f"[GO CONFIRM] Error for job {job_id}: {e}")
+        return jsonify({"url": None, "error": str(e)})
 
 
 @app.route("/go/test/<int:offer_id>")
