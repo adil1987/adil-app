@@ -458,15 +458,24 @@ def health():
 @app.route("/api/health/check/<int:smtp_id>", methods=["POST"])
 @login_required
 def api_health_check(smtp_id):
-    smtp = get_smtp_by_id(smtp_id)
-    if not smtp or not smtp.get("dmarc_email") or not smtp.get("dmarc_password"):
-        return jsonify({"success": False, "error": "Serveur ou identifiants introuvables."})
-    
     import imaplib
+    import traceback
     try:
+        smtp = get_smtp_by_id(smtp_id)
+        if not smtp:
+            return jsonify({"success": False, "error": "Serveur introuvable."})
+        
+        dmarc_email = smtp.get("dmarc_email", "")
+        dmarc_password = smtp.get("dmarc_password", "")
+        
+        if not dmarc_email or not dmarc_password:
+            return jsonify({"success": False, "error": "Identifiants DMARC non configurés."})
+        
+        imap_host = smtp.get("host", "")
+        
         # Connect to IMAP
-        mail = imaplib.IMAP4_SSL(smtp["host"], 993)
-        mail.login(smtp["dmarc_email"], smtp["dmarc_password"])
+        mail = imaplib.IMAP4_SSL(imap_host, 993)
+        mail.login(dmarc_email, dmarc_password)
         
         # Verify INBOX exists
         status, messages = mail.select("INBOX")
@@ -478,9 +487,11 @@ def api_health_check(smtp_id):
             return jsonify({"success": False, "error": "Impossible de sélectionner la boîte INBOX."})
             
     except imaplib.IMAP4.error as e:
-        return jsonify({"success": False, "error": "Identifiants invalides."})
+        return jsonify({"success": False, "error": f"Identifiants invalides: {str(e)}"})
     except Exception as e:
-        return jsonify({"success": False, "error": f"Erreur de connexion : {str(e)}"})
+        tb = traceback.format_exc()
+        print(f"Health check error: {tb}")
+        return jsonify({"success": False, "error": f"Erreur: {str(e)}"})
 
 # =========================
 # ROUTES - SMTP
