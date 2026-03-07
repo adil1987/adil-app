@@ -459,6 +459,7 @@ def health():
 @login_required
 def api_health_check(smtp_id):
     import imaplib
+    import ssl
     import traceback
     try:
         smtp = get_smtp_by_id(smtp_id)
@@ -471,13 +472,43 @@ def api_health_check(smtp_id):
         if not dmarc_email or not dmarc_password:
             return jsonify({"success": False, "error": "Identifiants DMARC non configurés."})
         
-        imap_host = "localhost"
+        imap_host = smtp.get("host", "")
+        mail = None
         
-        # Connect to IMAP (mailboxes are on the VPS itself)
-        mail = imaplib.IMAP4_SSL(imap_host, 993)
+        # Method 1: IMAP SSL port 993 (disable cert verification for self-signed)
+        try:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            mail = imaplib.IMAP4_SSL(imap_host, 993, ssl_context=ctx)
+        except Exception:
+            pass
+        
+        # Method 2: Plain IMAP port 143
+        if mail is None:
+            try:
+                mail = imaplib.IMAP4(imap_host, 143)
+            except Exception:
+                pass
+        
+        # Method 3: localhost SSL 993
+        if mail is None:
+            try:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                mail = imaplib.IMAP4_SSL("localhost", 993, ssl_context=ctx)
+            except Exception:
+                pass
+        
+        # Method 4: localhost plain 143
+        if mail is None:
+            try:
+                mail = imaplib.IMAP4("localhost", 143)
+            except Exception:
+                return jsonify({"success": False, "error": f"Impossible de se connecter en IMAP à {imap_host} (ports 993/143)."})
+        
         mail.login(dmarc_email, dmarc_password)
-        
-        # Verify INBOX exists
         status, messages = mail.select("INBOX")
         mail.logout()
         
