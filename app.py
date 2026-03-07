@@ -4,7 +4,7 @@ ADIL APP - Email Sender Application
 Application d'envoi d'emails en masse avec multi-SMTP et rotation.
 """
 
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from functools import wraps
 from datetime import datetime
 
