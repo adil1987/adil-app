@@ -471,9 +471,9 @@ def api_health_check(smtp_id):
         if not dmarc_email or not dmarc_password:
             return jsonify({"success": False, "error": "Identifiants DMARC non configurés."})
         
-        imap_host = smtp.get("host", "")
+        imap_host = "localhost"
         
-        # Connect to IMAP
+        # Connect to IMAP (mailboxes are on the VPS itself)
         mail = imaplib.IMAP4_SSL(imap_host, 993)
         mail.login(dmarc_email, dmarc_password)
         

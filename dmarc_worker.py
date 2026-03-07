@@ -23,8 +23,8 @@ def run_dmarc_checks():
         checked_count += 1
         
         try:
-            # Connexion IMAP
-            mail = imaplib.IMAP4_SSL(smtp["host"], 993)
+            # Connexion IMAP (les boîtes sont hébergées sur le VPS lui-même)
+            mail = imaplib.IMAP4_SSL("localhost", 993)
             mail.login(smtp["dmarc_email"], smtp["dmarc_password"])
             
             status, messages = mail.select("INBOX")
