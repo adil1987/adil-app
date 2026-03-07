@@ -69,7 +69,12 @@
         statusSpan.innerHTML = '<span class="badge gray">Vérification...</span>';
 
         fetch('/api/health/check/' + smtpId, { method: 'POST' })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    return res.text().then(txt => { throw new Error('HTTP ' + res.status); });
+                }
+                return res.json();
+            })
             .then(data => {
                 if (data.success) {
                     statusSpan.innerHTML = '<span class="badge green">✅ ' + data.message + '</span>';
@@ -78,7 +83,8 @@
                 }
             })
             .catch(err => {
-                statusSpan.innerHTML = '<span class="badge red">❌ Erreur réseau</span>';
+                statusSpan.innerHTML = '<span class="badge red">❌ ' + err.message + '</span>';
+                console.error('Health check error:', err);
             });
     }
 </script>
